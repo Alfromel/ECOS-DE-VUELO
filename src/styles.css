@@ -1,0 +1,382 @@
+        body { font-family: 'Inter', sans-serif; }
+        .nav-link:hover { color: #D32F2F; }
+        .card-hover, .rounded-xl, button {
+            will-change: transform;
+            transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.2s ease;
+        }
+        .card-hover:hover { transform: translate3d(0, -5px, 0); }
+        header { transform: translateZ(0); }
+        .rounded-xl { contain: layout paint; }
+        .svg-pin { background: none; border: none; }
+        .svg-pin svg { filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); transition: transform .15s ease; }
+        .svg-pin:hover svg { transform: scale(1.2); }
+        .leaflet-container { font-family: 'Inter', sans-serif; }
+        .logo-ave svg { display: block; border-radius: 10px; }
+        .logo-sub { font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: #64748b; line-height: 1; margin-top: 2px; }
+        header { transition: background-color .3s ease, box-shadow .3s ease, backdrop-filter .3s ease; }
+        .vista-oculta { display: none !important; }
+        body[data-vista="mapa"] main .grid { grid-template-columns: 2fr 1fr; }
+        body[data-vista="mapa"] #mapa { height: 28rem; }
+        body:not([data-vista="mapa"]) main .grid { grid-template-columns: minmax(0, 40rem); justify-content: center; }
+        @media (max-width: 768px) { body[data-vista] main .grid { grid-template-columns: 1fr; } }
+        #lista-lugares { display: none; }
+        body[data-vista="mapa"] main { max-width: none; padding: 0; }
+        body[data-vista="mapa"] main .grid { display: block; margin: 0; }
+        body[data-vista="mapa"] footer { display: none; }
+        body[data-vista="mapa"] #mapa-card {
+            position: fixed; top: var(--hh, 64px); left: 0; right: 0; bottom: 0;
+            padding: 0; border-radius: 0; contain: none; z-index: 10;
+        }
+        body[data-vista="mapa"] #mapa { height: 100% !important; border-radius: 0; margin: 0; }
+        body:not([data-vista="mapa"]) main .grid { grid-template-columns: minmax(0, 1fr); }
+        body[data-vista="ave"] main, body[data-vista="clima"] main, body[data-vista="hide"] main,
+        body[data-vista="reportes"] main, body[data-vista="recomendaciones"] main { max-width: none; padding: 0; margin: 0; }
+        body[data-vista="ave"] main .grid, body[data-vista="clima"] main .grid, body[data-vista="hide"] main .grid,
+        body[data-vista="reportes"] main .grid, body[data-vista="recomendaciones"] main .grid { margin: 0; gap: 0; }
+        body[data-vista="ave"] main .rounded-xl, body[data-vista="clima"] main .rounded-xl, body[data-vista="hide"] main .rounded-xl,
+        body[data-vista="reportes"] main .rounded-xl, body[data-vista="recomendaciones"] main .rounded-xl {
+            border-radius: 0; box-shadow: none; min-height: calc(100vh - var(--hh, 64px)); padding: clamp(1rem, 4vw, 3.5rem); contain: none; will-change: auto;
+        }
+        body[data-vista="ave"] footer, body[data-vista="clima"] footer, body[data-vista="hide"] footer { display: none; }
+        #hide { background: linear-gradient(160deg, #f0fdf4 0%, #fff 60%); }
+        .hide-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
+        .hide-item { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; align-items: center; background: #fff; border-radius: 1.1rem; padding: 1rem; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
+        .hide-ico { grid-row: span 2; width: 2.6rem; height: 2.6rem; border-radius: 50%; background: #fee2e2; color: #D32F2F; display: grid; place-items: center; font-size: 1.1rem; }
+        .hide-item b { font-size: .95rem; }
+        .hide-item small { display: block; font-size: .78rem; color: #64748b; margin-top: .15rem; }
+        .hide-item em { grid-column: 2; font-style: normal; font-size: .72rem; font-weight: 600; color: #1B5E20; }
+
+        /* Ficha técnica 3D */
+        #ficha { background: linear-gradient(160deg, #fff 0%, #fef2f2 60%, #f1f5f9 100%) !important; }
+        .ficha-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem; align-items: start; }
+        .ficha-visor { position: sticky; top: calc(var(--hh, 64px) + 1rem); }
+        .ficha-visor .visor-caja { position: relative; height: calc(100vh - var(--hh, 64px) - 7rem); min-height: 22rem; border-radius: 1.5rem; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.25); isolation: isolate; }
+        .ficha-visor model-viewer { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border-radius: 0; box-shadow: none; z-index: 2; }
+        .escena { position: absolute; inset: 0; z-index: 1; overflow: hidden; background: #14532d; }
+        .escena img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 60%; animation: zoomFondo 30s ease-in-out infinite alternate; }
+        .escena::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 40%, rgba(0,20,0,.45) 100%); }
+        @keyframes zoomFondo { from { transform: scale(1.02); } to { transform: scale(1.18) translate3d(-1.5%, 1%, 0); } }
+        .ficha-controles { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin-top: .75rem; }
+        .ficha-controles button { background: #fff; border: 1px solid #e2e8f0; border-radius: 9999px; padding: .4rem .9rem; font-size: .8rem; font-weight: 500; }
+        .ficha-controles button:hover { background: #D32F2F; color: #fff; }
+        /* Características alrededor del ave con flechas */
+        .hs { position: relative; display: block; width: 14px; height: 14px; padding: 0; border: 2px solid #fff; border-radius: 50%; background: #D32F2F; box-shadow: 0 0 0 0 rgba(211,47,47,.6); opacity: 0; pointer-events: none; transition: opacity .3s ease; }
+        .hs.on { opacity: 1; animation: pulso 1.8s ease-out infinite; }
+        @keyframes pulso { to { box-shadow: 0 0 0 14px rgba(211,47,47,0); } }
+        .hs-capa { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+        .hs-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+        .hs-linea { stroke: #fff; stroke-width: 2; opacity: 0; transition: opacity .4s ease; filter: drop-shadow(0 0 3px rgba(0,0,0,.7)); }
+        .hs-etq { position: absolute; width: 9.5rem; padding: .45rem .6rem; background: rgba(255,255,255,.96); border-radius: .6rem; box-shadow: 0 8px 22px rgba(0,0,0,.35); opacity: 0; transition: opacity .35s ease, transform .45s cubic-bezier(.2,1.3,.4,1); }
+        .hs-etq[data-lado="l"] { left: .6rem; border-left: 4px solid #D32F2F; transform: translateX(-1.5rem) scale(.8); transform-origin: 0 50%; }
+        .hs-etq[data-lado="r"] { right: .6rem; border-right: 4px solid #D32F2F; transform: translateX(1.5rem) scale(.8); transform-origin: 100% 50%; text-align: right; }
+        .hs-etq.on { opacity: 1; transform: none; }
+        .hs-etq b { display: block; font-size: .78rem; color: #1E293B; }
+        .hs-etq small { display: block; font-size: .64rem; line-height: 1.25; color: #475569; font-weight: 400; }
+        @media (max-width: 520px) { .hs-etq { width: 7.2rem; padding: .3rem .45rem; } .hs-etq small { display: none; } }
+        .dato-3d, .tarjeta-3d, .clima-item { transition: transform .15s ease, box-shadow .2s ease; transform-style: preserve-3d; will-change: transform; }
+        .dato-3d { background: #fff; border-radius: 1rem; padding: 1rem; text-align: center; box-shadow: 0 6px 18px rgba(0,0,0,.08); display: flex; flex-direction: column; gap: .15rem; }
+        .dato-3d i { color: #D32F2F; font-size: 1.3rem; }
+        .dato-3d b { font-size: 1.15rem; }
+        .dato-3d span { font-size: .75rem; color: #64748b; }
+        .ficha-secciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1.25rem; margin-top: 3rem; }
+        .tarjeta-3d { background: #fff; border-radius: 1.25rem; padding: 1.5rem; box-shadow: 0 8px 24px rgba(0,0,0,.08); }
+        .tarjeta-3d h4 { font-weight: 700; margin: .6rem 0 .3rem; }
+        .tarjeta-3d p { font-size: .875rem; color: #475569; }
+        .reveal { opacity: 0; transform: translate3d(0, 24px, 0); transition: opacity .6s ease, transform .6s ease; }
+        .reveal.visible { opacity: 1; transform: none; }
+        .barras > div { margin-bottom: 1rem; }
+        .barras span { font-size: .85rem; font-weight: 500; }
+        .barra { height: .7rem; background: #e2e8f0; border-radius: 9999px; overflow: hidden; margin-top: .3rem; }
+        .barra i { display: block; height: 100%; width: 0; background: #1B5E20; border-radius: 9999px; transition: width 1.4s cubic-bezier(.2,.8,.2,1); }
+        .barras.visible .barra i { width: var(--w); }
+        .ciclo { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 1rem; }
+        .ciclo > div { border-left: 4px solid #D32F2F; background: #fff; padding: .9rem 1rem; border-radius: .5rem; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
+        .ciclo b { display: block; color: #D32F2F; }
+        .ciclo span { font-size: .85rem; color: #475569; }
+        @media (max-width: 900px) { .ficha-hero { grid-template-columns: 1fr; } .ficha-visor { position: static; } }
+
+        /* Clima a pantalla completa */
+        #clima { background: linear-gradient(160deg, #e0f2fe 0%, #f0fdf4 100%) !important; }
+        #clima #clima-temp { font-size: clamp(4rem, 12vw, 8rem); line-height: 1; }
+        #clima #clima-desc { font-size: 1.5rem; }
+        #clima #clima-icono { font-size: clamp(5rem, 14vw, 10rem); animation: flotar 4s ease-in-out infinite; }
+        @keyframes flotar { 50% { transform: translate3d(0, -14px, 0); } }
+        #clima .grid.grid-cols-2 { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); font-size: 1.05rem; }
+        #clima .grid.grid-cols-2 > div { background: rgba(255,255,255,.75); border-radius: 1rem; padding: 1rem; box-shadow: 0 6px 18px rgba(0,0,0,.06); }
+        .clima-fila { display: flex; gap: .9rem; overflow-x: auto; padding: .5rem .25rem 1rem; scroll-snap-type: x proximity; }
+        .clima-item { flex: 0 0 6.5rem; background: rgba(255,255,255,.85); border-radius: 1rem; padding: .9rem .5rem; text-align: center; display: flex; flex-direction: column; gap: .2rem; box-shadow: 0 6px 18px rgba(0,0,0,.08); scroll-snap-align: start; }
+        #clima-dias .clima-item { flex-basis: 8.5rem; }
+        .clima-item i { font-size: 1.8rem; color: #F59E0B; }
+        .clima-item small { color: #64748b; }
+        model-viewer { width: 100%; height: 22rem; background: radial-gradient(circle at 50% 40%, #fee2e2, #f1f5f9 70%); border-radius: .75rem; --poster-color: transparent; }
+@media (min-width: 769px) {
+        /* ============================================================
+   DISEÑO ESCRITORIO / WEB (>= 769px)
+   ============================================================ */
+.app-tabbar { display: none !important; }
+.hero-corto { display: none; }
+
+header nav a { transition: color .2s ease; }
+header .container { max-width: 80rem; }
+
+/* Encabezado de vidrio; sobre la portada en Inicio */
+header {
+    background: linear-gradient(180deg, rgba(15, 30, 20, .45), rgba(15, 30, 20, .28)) !important;
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-bottom: 1px solid rgba(255, 255, 255, .22);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .12) !important;
+}
+body[data-vista="inicio"] header { position: fixed !important; top: 0; left: 0; right: 0; }
+header .logo-ave, header .logo-sub { display: none !important; }
+header h1 { color: #fff !important; text-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+header nav a { color: rgba(255, 255, 255, .85) !important; text-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
+header nav a:hover { color: #fff !important; }
+header nav a.text-primary { color: #fff !important; border-color: #ef4444 !important; font-weight: 600; }
+header button { background: rgba(255, 255, 255, .92) !important; color: #166534 !important; font-weight: 700; }
+
+/* Portada de Inicio un poco más alta en escritorio */
+section.relative.h-\[80vh\] { height: 100vh; min-height: 38rem; }
+
+/* Tarjetas con elevación al pasar el cursor */
+.bg-white.rounded-xl.shadow-md:hover { box-shadow: 0 14px 34px rgba(0, 0, 0, .12); }
+
+}
+@media (max-width: 768px) {
+/* ============================================================
+   DISEÑO MÓVIL — experiencia tipo app nativa (<= 768px)
+   Inspirado en index.html: barra inferior flotante de cristal,
+   tarjetas redondeadas, botones táctiles y pantallas completas.
+   ============================================================ */
+:root {
+    --tab-h: 60px;
+    --tab-gap: 12px;
+    --tab-total: calc(var(--tab-h) + var(--tab-gap) + env(safe-area-inset-bottom, 0px));
+}
+
+html, body {
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+    background: #F2F2F7;
+    -webkit-font-smoothing: antialiased;
+}
+body { padding-bottom: var(--tab-total); touch-action: manipulation; }
+
+/* ---------- Barra superior transparente tipo cristal (como index.html) ---------- */
+header {
+    background: linear-gradient(180deg, rgba(15, 30, 20, .42), rgba(15, 30, 20, .26)) !important;
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border-bottom: 1px solid rgba(255, 255, 255, .22);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, .12) !important;
+    padding-top: env(safe-area-inset-top, 0px);
+}
+header { position: fixed !important; top: 0; left: 0; right: 0; }
+header nav { display: none !important; }
+html, body { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, body::-webkit-scrollbar, *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+body:not([data-vista="inicio"]) { --hh: 0px; }
+body:not([data-vista="inicio"]) header { display: none !important; }
+header .container { padding: 8px 14px !important; gap: .6rem; }
+header h1 { font-size: 1rem !important; letter-spacing: -.01em; }
+header .logo-ave, header .logo-sub { display: none !important; }
+header h1 { color: #fff !important; text-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+header .logo-marca { min-width: 0; }
+header button {
+    padding: 0 16px !important;
+    min-height: 36px !important;
+    font-size: .78rem !important;
+    border-radius: 9999px !important;
+    background: rgba(255, 255, 255, .92) !important;
+    color: #166534 !important;
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .18);
+}
+
+/* ---------- Botones táctiles ---------- */
+button, .btn, a[role="button"] {
+    min-height: 44px;
+    border-radius: 14px !important;
+    font-size: .92rem !important;
+}
+.hs { min-height: 0 !important; width: 14px; height: 14px; border-radius: 50% !important; }
+button:active { transform: scale(.96); }
+
+/* ---------- Inicio: portada compacta (media pantalla) ---------- */
+.hero-corto { display: none; }
+section.relative.h-\[80vh\] {
+    height: 45dvh !important;
+    min-height: 0;
+    padding: 0 0 22px;
+    border-radius: 0 0 28px 28px;
+    align-items: flex-end !important;
+}
+section.relative.h-\[80vh\] .hero-largo { display: none; }
+section.relative.h-\[80vh\] .hero-corto { display: inline; }
+section.relative.h-\[80vh\] h2 { font-size: 2rem !important; line-height: 1.1 !important; margin-bottom: .9rem !important; }
+section.relative.h-\[80vh\] p,
+section.relative.h-\[80vh\] .grid > .bg-white\/95 { display: none !important; }
+section.relative.h-\[80vh\] .grid { gap: 0 !important; }
+section.relative.h-\[80vh\] .flex-wrap { flex-direction: row; gap: 8px !important; }
+section.relative.h-\[80vh\] .flex-wrap button { flex: 1; justify-content: center; padding: 0 10px !important; min-height: 42px; font-size: .82rem !important; }
+
+section[data-vista="inicio"].container,
+section[data-vista="nosotros"].container { padding: 20px 14px 8px !important; }
+
+/* ---------- Contenido y tarjetas ---------- */
+main.container { padding: 14px 12px 8px !important; }
+main .grid { gap: 14px !important; }
+.bg-white.rounded-xl.shadow-md {
+    border-radius: 22px !important;
+    border: 1px solid rgba(0, 0, 0, .04);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 24px rgba(0, 0, 0, .06) !important;
+}
+footer { padding-bottom: 24px !important; text-align: center; }
+
+/* ---------- Vistas a pantalla completa ---------- */
+body[data-vista="ave"] main .rounded-xl,
+body[data-vista="clima"] main .rounded-xl,
+body[data-vista="reportes"] main .rounded-xl,
+body[data-vista="recomendaciones"] main .rounded-xl {
+    min-height: calc(100dvh - var(--hh, 56px)) !important;
+    padding: 14px 14px calc(var(--tab-total) + 16px) !important;
+}
+
+/* ---------- Mapa ---------- */
+body[data-vista="mapa"] #mapa-card { top: var(--hh, 56px); bottom: 0; }
+body[data-vista="mapa"] .leaflet-bottom { margin-bottom: calc(var(--tab-total) - 4px); }
+body[data-vista="mapa"] .leaflet-top.leaflet-left { margin-top: 4px; }
+#mapa-card .absolute.top-3 { top: .6rem; right: .6rem; max-width: calc(100vw - 4.5rem); }
+#mapa-panel { max-height: 38dvh; overflow-y: auto; border-radius: 18px !important; }
+
+/* ---------- Ficha técnica (ave 3D) ---------- */
+.ficha-hero { grid-template-columns: 1fr !important; gap: 1rem; }
+.ficha-visor { position: static !important; }
+.ficha-visor .visor-caja {
+    height: 17.5rem !important;
+    min-height: 0;
+    border-radius: 24px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, .22);
+}
+.ficha-controles { margin-top: .6rem; }
+.ficha-controles button { min-height: 40px; padding: 0 1.1rem; font-size: .85rem !important; }
+.hs-etq { width: 4.9rem; padding: .18rem .35rem; border-radius: .45rem; border-left-width: 3px !important; border-right-width: 3px !important; }
+.hs-etq b { font-size: .56rem; line-height: 1.15; }
+.hs { width: 10px !important; height: 10px !important; border-width: 1.5px; }
+.hs-linea { stroke-width: 1.2; }
+.hs-etq small { display: none; }
+.ficha-secciones { margin-top: 1.5rem; gap: .9rem; grid-template-columns: 1fr; }
+.tarjeta-3d, .dato-3d { border-radius: 20px; }
+
+/* ---------- Clima ---------- */
+#clima { padding-top: 18px !important; }
+#clima > h3 { font-size: 1rem; margin: 0 !important; color: #475569; }
+#clima-lugar { font-size: .85rem !important; margin: 0 0 .9rem !important; }
+#clima > .flex {
+    margin-bottom: 1rem !important; padding: 1rem 1.1rem; border-radius: 24px;
+    background: linear-gradient(135deg, #2563eb, #38bdf8); color: #fff;
+    box-shadow: 0 12px 28px rgba(37, 99, 235, .3);
+}
+#clima > .flex .text-gray-500, #clima > .flex .text-gray-400 { color: rgba(255,255,255,.85) !important; }
+#clima #clima-temp { font-size: 3.6rem; font-weight: 800; }
+#clima #clima-desc { font-size: 1.05rem; }
+#clima #clima-icono { font-size: 4.2rem; color: #fde047 !important; }
+#clima .grid.grid-cols-2 { grid-template-columns: 1fr 1fr; font-size: .82rem; gap: .6rem !important; margin-bottom: .5rem !important; }
+#clima .grid.grid-cols-2 > div { padding: .7rem .8rem; border-radius: 16px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+#clima h4 { font-size: .95rem !important; margin: 1.1rem 0 .4rem !important; color: #334155; }
+.clima-fila { margin: 0 -14px; padding: .3rem 14px .6rem; gap: .55rem; scrollbar-width: none; }
+.clima-fila::-webkit-scrollbar { display: none; }
+.clima-item { flex-basis: 4.4rem; border-radius: 16px; padding: .6rem .3rem; font-size: .8rem; }
+.clima-item i { font-size: 1.3rem; }
+#clima-dias { flex-direction: column; margin: 0; padding: 0; overflow: visible; gap: .45rem; }
+#clima-dias .clima-item {
+    flex-basis: auto; flex-direction: row; align-items: center; justify-content: space-between; gap: .6rem;
+    padding: .65rem .9rem; text-transform: capitalize; font-size: .9rem;
+}
+#clima-dias .clima-item span { width: 2.6rem; text-align: left; font-weight: 600; }
+#clima-dias .clima-item b { flex: 1; text-align: center; }
+#clima-dias .clima-item small { width: 5.5rem; text-align: right; }
+
+/* ---------- Barra inferior flotante (estilo index.html) ---------- */
+.app-tabbar {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--tab-gap) + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%);
+    width: calc(100% - 24px);
+    max-width: 440px;
+    height: var(--tab-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    padding: 0 6px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, .38), rgba(255, 255, 255, .18));
+    backdrop-filter: blur(14px) saturate(200%) brightness(1.08);
+    -webkit-backdrop-filter: blur(14px) saturate(200%) brightness(1.08);
+    border: 1px solid rgba(255, 255, 255, .75);
+    border-radius: 24px;
+    box-shadow: 0 8px 32px rgba(31, 38, 135, .2), inset 0 1px 1px rgba(255, 255, 255, .9), inset 0 -1px 1px rgba(255, 255, 255, .3);
+    z-index: 9999;
+}
+.app-tabbar a, .app-tabbar button {
+    flex: 1;
+    height: 48px;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border-radius: 16px !important;
+    background: none;
+    border: 0;
+    color: #1f2937;
+    font-size: 10px !important;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background-color .25s ease, color .25s ease, transform .15s ease;
+}
+.app-tabbar a i, .app-tabbar button i { font-size: 19px; line-height: 1; }
+.app-tabbar a.active { color: #D32F2F; background: rgba(211, 47, 47, .14); }
+.app-tabbar a:active, .app-tabbar button:active { transform: scale(.9); }
+.app-tabbar { -webkit-user-select: none; user-select: none; }
+
+/* Pantallas bajas o muy angostas */
+@media (max-width: 360px), (max-height: 640px) {
+    :root { --tab-h: 52px; --tab-gap: 8px; }
+    .app-tabbar a { height: 42px; font-size: 9px; }
+    .app-tabbar a i { font-size: 17px; }
+}
+/* Horizontal en celular */
+@media (max-height: 480px) and (orientation: landscape) {
+    .ficha-visor .visor-caja { height: 70dvh !important; min-height: 14rem; }
+    section.relative.h-\[80vh\] { min-height: auto; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+}
+
+.clima-mini { display: none; }
+@media (max-width: 768px) {
+    .clima-mini {
+        display: flex; align-items: center; gap: .5rem;
+        position: absolute; z-index: 20; right: 26px;
+        top: calc(var(--hh, 56px) + 22px);
+        padding: .45rem .75rem;
+        color: #fff; text-shadow: 0 1px 3px rgba(0, 0, 0, .45);
+        background: linear-gradient(135deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .03));
+        backdrop-filter: blur(6px) saturate(150%);
+        -webkit-backdrop-filter: blur(6px) saturate(150%);
+        border: 1px solid rgba(255, 255, 255, .22);
+        border-radius: 18px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, .10), inset 0 1px 1px rgba(255, 255, 255, .25);
+    }
+    .clima-mini > i { font-size: 1.6rem; color: #fde047; }
+    .clima-mini b { display: block; font-size: 1.1rem; line-height: 1.1; }
+    .clima-mini small { display: block; font-size: .62rem; line-height: 1.2; opacity: .92; max-width: 6.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+}
+
+.hide-item .hide-ico b { font-size: 1.1rem; }
+.hide-acciones { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }
+.hide-acciones a { flex: 1; text-align: center; font-size: .78rem; font-weight: 600; padding: .45rem .6rem; border-radius: 9999px; background: #D32F2F; color: #fff; white-space: nowrap; }
+.hide-acciones a + a { background: #fff; color: #1B5E20; border: 1px solid #1B5E20; }

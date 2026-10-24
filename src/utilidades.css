@@ -1,0 +1,3 @@
+.content-auto { content-visibility: auto; }
+.text-shadow { text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); }
+.hero-gradient { background: linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.4)); }
