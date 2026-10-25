@@ -1,4 +1,5 @@
-// Forma (esquinas/curvas) de cada tramo. Se guarda solo en este navegador: no toca la base de datos.
+import { supabase } from './supabase'
+
 const CLAVE = 'ecos.formaTramos'
 
 const leer = () => {
@@ -7,12 +8,24 @@ const leer = () => {
 
 export const claveTramo = (rutaId, desdeId, hastaId) => `${rutaId}:${desdeId}:${hastaId}`
 
-export const formaDeTramo = (rutaId, desdeId, hastaId) => leer()[claveTramo(rutaId, desdeId, hastaId)] || null
+export const formaDeTramo = (rutaId, desdeId, hastaId, formasCompartidas) => {
+  const clave = claveTramo(rutaId, desdeId, hastaId)
+  return formasCompartidas?.[clave] || null
+}
+
+export const leerFormasLocales = leer
+
+export function eliminarFormasLocales(claves) {
+  const todas = leer()
+  claves.forEach(clave => delete todas[clave])
+  try { localStorage.setItem(CLAVE, JSON.stringify(todas)) } catch { /* almacenamiento no disponible */ }
+}
 
 export function guardarFormaTramo(rutaId, desdeId, hastaId, forma) {
-  const todas = leer()
-  const k = claveTramo(rutaId, desdeId, hastaId)
-  if (forma && forma.puntos?.length) todas[k] = forma
-  else delete todas[k]
-  try { localStorage.setItem(CLAVE, JSON.stringify(todas)) } catch { /* almacenamiento no disponible */ }
+  return supabase.rpc('guardar_forma_tramo', {
+    p_ruta_id: String(rutaId),
+    p_desde_parada: String(desdeId),
+    p_hasta_parada: String(hastaId),
+    p_forma: forma?.puntos?.length ? forma : null,
+  })
 }

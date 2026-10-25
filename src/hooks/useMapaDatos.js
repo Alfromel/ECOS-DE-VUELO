@@ -19,5 +19,19 @@ export default function useMapaDatos() {
 
   useEffect(() => { recargar() }, [recargar])
 
+  useEffect(() => {
+    const canal = supabase.channel('mapa-rutas-cambios')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rutas' }, recargar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'paradas' }, recargar)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rutas_enlaces' }, recargar)
+      .subscribe(estado => {
+        if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') {
+          console.error(`No se pudo sincronizar el mapa en tiempo real: ${estado}`)
+        }
+      })
+
+    return () => { supabase.removeChannel(canal) }
+  }, [recargar])
+
   return { ...d, cargando, recargar }
 }

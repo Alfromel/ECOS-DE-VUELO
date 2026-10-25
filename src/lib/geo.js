@@ -59,11 +59,11 @@ export const segmentosRuta = (ruta, paradas, enlaces) => {
   const segs = []
   for (let i = 0; i < ps.length - 1; i++) {
     const a = ps[i], b = ps[i + 1]
-    segs.push([a, b, null, formaDeTramo(ruta.id, a.id, b.id)])
+    segs.push([a, b, null, formaDeTramo(ruta.id, a.id, b.id, ruta.formas_tramos)])
   }
   enlacesRuta.forEach(e => {
     const a = porId[e.desde_parada], b = porId[e.hasta_parada]
-    if (a && b && !esConsecutivo(a.id, b.id)) segs.push([a, b, e.id, formaDeTramo(ruta.id, a.id, b.id)])
+    if (a && b && !esConsecutivo(a.id, b.id)) segs.push([a, b, e.id, formaDeTramo(ruta.id, a.id, b.id, ruta.formas_tramos)])
   })
   return { paradas: ps, segs }
 }

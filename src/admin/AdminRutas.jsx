@@ -5,13 +5,13 @@ import { useAuth } from '../hooks/useAuth'
 import { CENTRO } from '../hooks/useUbicacion'
 import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, svgPin } from '../components/MapaRutas'
 import { coordenadasTramo, distanciaTramoKm, fmtKm, pos as pt, segmentosRuta } from '../lib/geo'
-import { guardarFormaTramo } from '../lib/formaTramos'
+import { eliminarFormasLocales, guardarFormaTramo, leerFormasLocales } from '../lib/formaTramos'
 import { agregarControlRotacion, opcionesRotacionAdmin } from '../lib/rotacionMapa'
 
 const COLORES = ['#2E86AB', '#D32F2F', '#1B5E20', '#F59E0B', '#7B1FA2', '#0F766E', '#DB2777']
 
 export default function AdminRutas({ datos }) {
-  const { perfil } = useAuth()
+  const { perfil, rol } = useAuth()
   const { rutas, paradas, enlaces, recargar } = datos
   const [selId, setSelId] = useState(null)
   const [modo, setModo] = useState('ver') // ver | agregar | enlazar
@@ -31,6 +31,7 @@ export default function AdminRutas({ datos }) {
   const edit = useRef(null)
   const estado = useRef({})
   const ajustado = useRef(false)
+  const migracionFormasHecha = useRef(false)
 
   const sel = rutas.find(r => r.id === selId) || null
   const { paradas: ps, segs } = sel ? segmentosRuta(sel, paradas, enlaces) : { paradas: [], segs: [] }
@@ -40,6 +41,44 @@ export default function AdminRutas({ datos }) {
   }, [sel, modo, origen, ps, datos])
 
   const fallo = r => { if (r.error) setError(r.error.message); else setError(null); return r }
+
+  const guardarForma = async (rutaId, a, b, forma) => {
+    const r = fallo(await guardarFormaTramo(rutaId, a.id, b.id, forma))
+    if (!r.error) {
+      await recargar()
+      setVForma(v => v + 1)
+    }
+  }
+
+  useEffect(() => {
+    if (rol !== 'admin' || !rutas.length || migracionFormasHecha.current) return
+    migracionFormasHecha.current = true
+    const locales = leerFormasLocales()
+    const pendientes = Object.entries(locales)
+    if (!pendientes.length) return
+
+    const migrar = async () => {
+      const migradas = []
+      for (const [clave, forma] of pendientes) {
+        const [rutaId, desdeId, hastaId] = clave.split(':')
+        if (!rutaId || !desdeId || !hastaId) {
+          setError('No se pudo migrar una deformación local porque su identificador no es válido.')
+          return
+        }
+        const ruta = rutas.find(r => String(r.id) === rutaId)
+        if (!ruta || ruta.formas_tramos?.[clave]) {
+          migradas.push(clave)
+          continue
+        }
+        const r = fallo(await guardarFormaTramo(rutaId, desdeId, hastaId, forma))
+        if (r.error) return
+        migradas.push(clave)
+      }
+      eliminarFormasLocales(migradas)
+      await recargar()
+    }
+    migrar()
+  }, [rol, rutas, recargar])
 
   useEffect(() => {
     const m = L.map(el.current, { zoomControl: false, ...opcionesRotacionAdmin }).setView(CENTRO, 7)
@@ -95,7 +134,6 @@ export default function AdminRutas({ datos }) {
       })
     })
     if (sel && modo === 'deformar') {
-      const guardar = (a, b, forma) => { guardarFormaTramo(sel.id, a.id, b.id, forma); setVForma(v => v + 1) }
       const icono = (cls, color) => L.divIcon({ className: cls, html: `<span style="--c:${color}"></span>`, iconSize: [26, 26] })
       segs.forEach(([a, b, , forma]) => {
         const clave = a.id + ':' + b.id
@@ -112,8 +150,8 @@ export default function AdminRutas({ datos }) {
           const v = L.marker(p, { draggable: true, icon: icono('adm-vertice', sel.color), zIndexOffset: 500 }).addTo(edit.current)
           v.bindTooltip('Arrastra para mover · toca para quitar', { direction: 'top', offset: [0, -10] })
           v.on('drag', () => previa(medios.map((q, j) => j === i ? redondear(v.getLatLng()) : q)))
-          v.on('dragend', () => guardar(a, b, { puntos: medios.map((q, j) => j === i ? redondear(v.getLatLng()) : q), curva }))
-          v.on('click', () => { setLineaSel(clave); guardar(a, b, { puntos: medios.filter((_, j) => j !== i), curva }) })
+          v.on('dragend', () => guardarForma(sel.id, a, b, { puntos: medios.map((q, j) => j === i ? redondear(v.getLatLng()) : q), curva }))
+          v.on('click', () => { setLineaSel(clave); guardarForma(sel.id, a, b, { puntos: medios.filter((_, j) => j !== i), curva }) })
         })
         cs.slice(0, -1).forEach((p, i) => {
           const q = cs[i + 1]
@@ -121,7 +159,7 @@ export default function AdminRutas({ datos }) {
           h.bindTooltip('Arrastra para deformar', { direction: 'top', offset: [0, -10] })
           h.on('dragstart', () => setLineaSel(clave))
           h.on('drag', () => previa([...medios.slice(0, i), redondear(h.getLatLng()), ...medios.slice(i)]))
-          h.on('dragend', () => guardar(a, b, { puntos: [...medios.slice(0, i), redondear(h.getLatLng()), ...medios.slice(i)], curva }))
+          h.on('dragend', () => guardarForma(sel.id, a, b, { puntos: [...medios.slice(0, i), redondear(h.getLatLng()), ...medios.slice(i)], curva }))
         })
       })
     }
@@ -188,12 +226,10 @@ export default function AdminRutas({ datos }) {
   const estiloSel = formaSel && formaSel.curva === false ? 'esquina' : 'curva'
   const cambiarEstilo = curva => {
     if (!segSel) return
-    guardarFormaTramo(sel.id, segSel[0].id, segSel[1].id, { puntos: formaSel?.puntos || [], curva })
-    setVForma(v => v + 1)
+    guardarForma(sel.id, segSel[0], segSel[1], { puntos: formaSel?.puntos || [], curva })
   }
   const dejarRecta = () => {
-    guardarFormaTramo(sel.id, segSel[0].id, segSel[1].id, null)
-    setVForma(v => v + 1)
+    if (segSel) guardarForma(sel.id, segSel[0], segSel[1], null)
   }
 
   const confirmarParada = async () => {
@@ -355,4 +391,3 @@ export default function AdminRutas({ datos }) {
     </div>
   )
 }
-
