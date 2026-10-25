@@ -26,6 +26,13 @@ export default function AdminAvistamientos({ datos }) {
     cargar()
   }
 
+  const eliminar = async a => {
+    if (!confirm(`¿Eliminar el avistamiento de "${a.especie}"? Esta acción no se puede deshacer.`)) return
+    const { error } = await supabase.from('avistamientos').delete().eq('id', a.id)
+    if (error) { alert('No se pudo eliminar: ' + error.message); return }
+    cargar()
+  }
+
   const nom = (arr, id) => arr.find(x => x.id === id)?.nombre
   const vistos = lista.filter(a => filtro === 'todos' || a.estado === filtro)
 
@@ -53,6 +60,7 @@ export default function AdminAvistamientos({ datos }) {
               <input className="campo mb-0 flex-1" placeholder="Comentario (opcional)" defaultValue={a.comentario_admin || ''} onChange={e => setComent({ ...coment, [a.id]: e.target.value })} />
               {a.estado !== 'aprobado' && <button className="btn-rojo" onClick={() => evaluar(a, 'aprobado')}>Aprobar</button>}
               {a.estado !== 'rechazado' && <button className="btn-sec" onClick={() => evaluar(a, 'rechazado')}>Rechazar</button>}
+              <button className="btn-sec text-primary" title="Eliminar avistamiento" aria-label="Eliminar avistamiento" onClick={() => eliminar(a)}><i className="fa fa-trash"></i></button>
             </div>
           </div>
         ))}

@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { CENTRO } from '../hooks/useUbicacion'
 import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, pinHide } from '../components/MapaRutas'
 import { fmtKm, pos as pt, paradaCercana } from '../lib/geo'
+import { agregarControlRotacion, opcionesRotacionAdmin } from '../lib/rotacionMapa'
 
 const vacio = { id: null, nombre: '', descripcion: '', latitud: '', longitud: '', ruta_id: '', parada_id: '' }
 
@@ -43,11 +44,12 @@ export default function AdminHides({ datos }) {
   }
 
   useEffect(() => {
-    const m = L.map(el.current).setView(CENTRO, 7)
+    const m = L.map(el.current, { zoomControl: false, ...opcionesRotacionAdmin }).setView(CENTRO, 7)
     const bases = capasBase()
     bases.Híbrido.addTo(m)
     agregarBuscador(m)
     agregarSelectorCapa(m, bases)
+    agregarControlRotacion(m)
     capa.current = L.layerGroup().addTo(m)
     mapa.current = m
     m.on('click', e => colocar(e.latlng.lat, e.latlng.lng))
@@ -121,6 +123,7 @@ export default function AdminHides({ datos }) {
         <div className="space-y-1 mb-3">
           {hides.map(h => (
             <button key={h.id} onClick={() => editar(h)} className={'adm-fila ' + (f?.id === h.id ? 'activa' : '')}>
+              <span className="hide-mini-mirador" aria-hidden="true"><i className="fa fa-binoculars"></i></span>
               <span className="flex-1 text-left">{h.nombre}<small className="block text-gray-500">{[nombreRuta(h.ruta_id), nombreParada(h.parada_id)].filter(Boolean).join(' · ') || 'Sin ruta'}</small></span>
             </button>
           ))}

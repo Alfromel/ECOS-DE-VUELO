@@ -4,9 +4,9 @@ import { useAuth } from '../hooks/useAuth'
 
 const vacio = { tipo: 'hide', hide_id: '', ruta_id: '', parada_id: '', especie: 'Paraba Frente Roja', descripcion: '', lat: '', lon: '' }
 
-export default function AvistamientoModal({ datos, onCerrar, onCreado }) {
+export default function AvistamientoModal({ datos, onCerrar, onCreado, hideInicial = '' }) {
   const { perfil } = useAuth()
-  const [f, setF] = useState(vacio)
+  const [f, setF] = useState({ ...vacio, hide_id: hideInicial })
   const [fotos, setFotos] = useState([])
   const [error, setError] = useState(null)
   const [enviando, setEnviando] = useState(false)

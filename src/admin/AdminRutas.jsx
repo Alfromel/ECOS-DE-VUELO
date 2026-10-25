@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { CENTRO } from '../hooks/useUbicacion'
 import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, svgPin } from '../components/MapaRutas'
-import { distanciaKm, fmtKm, pos as pt, segmentosRuta } from '../lib/geo'
+import { coordenadasTramo, distanciaTramoKm, fmtKm, pos as pt, segmentosRuta } from '../lib/geo'
+import { guardarFormaTramo } from '../lib/formaTramos'
+import { agregarControlRotacion, opcionesRotacionAdmin } from '../lib/rotacionMapa'
 
 const COLORES = ['#2E86AB', '#D32F2F', '#1B5E20', '#F59E0B', '#7B1FA2', '#0F766E', '#DB2777']
 
@@ -16,6 +18,12 @@ export default function AdminRutas({ datos }) {
   const [origen, setOrigen] = useState(null)
   const [nueva, setNueva] = useState({ nombre: '', color: COLORES[0] })
   const [error, setError] = useState(null)
+  const [abiertoRutas, setAbiertoRutas] = useState(true)
+  const [abiertoParadas, setAbiertoParadas] = useState(true)
+  const [paradaPendiente, setParadaPendiente] = useState(null)
+  const [guardandoParada, setGuardandoParada] = useState(false)
+  const [lineaSel, setLineaSel] = useState(null)
+  const [vForma, setVForma] = useState(0)
 
   const el = useRef(null)
   const mapa = useRef(null)
@@ -26,30 +34,40 @@ export default function AdminRutas({ datos }) {
 
   const sel = rutas.find(r => r.id === selId) || null
   const { paradas: ps, segs } = sel ? segmentosRuta(sel, paradas, enlaces) : { paradas: [], segs: [] }
-  estado.current = { sel, modo, origen, ps, datos }
+
+  useEffect(() => {
+    estado.current = { sel, modo, origen, ps, datos }
+  }, [sel, modo, origen, ps, datos])
 
   const fallo = r => { if (r.error) setError(r.error.message); else setError(null); return r }
 
   useEffect(() => {
-    const m = L.map(el.current).setView(CENTRO, 7)
+    const m = L.map(el.current, { zoomControl: false, ...opcionesRotacionAdmin }).setView(CENTRO, 7)
     const bases = capasBase()
     bases.Híbrido.addTo(m)
     agregarBuscador(m)
     agregarSelectorCapa(m, bases)
+    agregarControlRotacion(m)
     capa.current = L.layerGroup().addTo(m)
     edit.current = L.layerGroup().addTo(m)
     mapa.current = m
-    m.on('click', async e => {
+    m.on('click', e => {
       const { sel: s, modo: md, ps: lista } = estado.current
       if (md !== 'agregar' || !s) return
+      const latitud = +e.latlng.lat.toFixed(6)
+      const longitud = +e.latlng.lng.toFixed(6)
       const orden = lista.length ? Math.max(...lista.map(p => p.orden)) + 1 : 1
-      const r = await supabase.from('paradas').insert({
-        ruta_id: s.id, nombre: 'Parada ' + (lista.length + 1), latitud: +e.latlng.lat.toFixed(6), longitud: +e.latlng.lng.toFixed(6), orden, color: s.color,
+      setError(null)
+      setParadaPendiente({
+        rutaId: s.id,
+        nombre: 'Parada ' + (lista.length + 1),
+        latitud,
+        longitud,
+        orden,
+        color: s.color,
       })
-      if (r.error) setError(r.error.message); else recargar()
     })
     return () => { m.remove(); mapa.current = null }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -69,21 +87,71 @@ export default function AdminRutas({ datos }) {
         if (md !== 'enlazar') return
         if (!o) { setOrigen(p); return }
         if (o.id !== p.id) {
-          fallo(await supabase.from('rutas_enlaces').insert({ ruta_id: sel.id, desde_parada: o.id, hasta_parada: p.id }))
+          const actual = estado.current.sel
+          fallo(await supabase.from('rutas_enlaces').insert({ ruta_id: actual.id, desde_parada: o.id, hasta_parada: p.id }))
           recargar()
         }
         setOrigen(null)
       })
     })
+    if (sel && modo === 'deformar') {
+      const guardar = (a, b, forma) => { guardarFormaTramo(sel.id, a.id, b.id, forma); setVForma(v => v + 1) }
+      const icono = (cls, color) => L.divIcon({ className: cls, html: `<span style="--c:${color}"></span>`, iconSize: [26, 26] })
+      segs.forEach(([a, b, , forma]) => {
+        const clave = a.id + ':' + b.id
+        const activa = lineaSel === clave
+        const medios = forma?.puntos || []
+        const curva = forma ? forma.curva !== false : true
+        const cs = [pt(a), ...medios, pt(b)]
+        const vista = L.polyline(coordenadasTramo(a, b, forma), { color: sel.color, weight: activa ? 9 : 6, opacity: 1, lineCap: 'round', lineJoin: 'round', className: activa ? 'adm-linea-activa' : '' }).addTo(edit.current)
+        const previa = pts => vista.setLatLngs(coordenadasTramo(a, b, { puntos: pts, curva }))
+        const toque = L.polyline(cs, { color: '#000', weight: 26, opacity: 0, lineCap: 'round' }).addTo(edit.current)
+        toque.on('click', ev => { L.DomEvent.stopPropagation(ev); setLineaSel(clave) })
+        const redondear = ll => [+ll.lat.toFixed(6), +ll.lng.toFixed(6)]
+        medios.forEach((p, i) => {
+          const v = L.marker(p, { draggable: true, icon: icono('adm-vertice', sel.color), zIndexOffset: 500 }).addTo(edit.current)
+          v.bindTooltip('Arrastra para mover · toca para quitar', { direction: 'top', offset: [0, -10] })
+          v.on('drag', () => previa(medios.map((q, j) => j === i ? redondear(v.getLatLng()) : q)))
+          v.on('dragend', () => guardar(a, b, { puntos: medios.map((q, j) => j === i ? redondear(v.getLatLng()) : q), curva }))
+          v.on('click', () => { setLineaSel(clave); guardar(a, b, { puntos: medios.filter((_, j) => j !== i), curva }) })
+        })
+        cs.slice(0, -1).forEach((p, i) => {
+          const q = cs[i + 1]
+          const h = L.marker([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], { draggable: true, icon: icono('adm-asa', sel.color), zIndexOffset: 400 }).addTo(edit.current)
+          h.bindTooltip('Arrastra para deformar', { direction: 'top', offset: [0, -10] })
+          h.on('dragstart', () => setLineaSel(clave))
+          h.on('drag', () => previa([...medios.slice(0, i), redondear(h.getLatLng()), ...medios.slice(i)]))
+          h.on('dragend', () => guardar(a, b, { puntos: [...medios.slice(0, i), redondear(h.getLatLng()), ...medios.slice(i)], curva }))
+        })
+      })
+    }
     if (!ajustado.current && paradas.length) {
       m.fitBounds(L.latLngBounds(paradas.map(pt)), { padding: [50, 50], animate: false })
       ajustado.current = true
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [datos, selId, origen])
+  },   [datos, selId, origen, modo, lineaSel, vForma])
 
-  useEffect(() => { mapa.current.getContainer().style.cursor = modo === 'agregar' ? 'crosshair' : '' }, [modo])
-  useEffect(() => { setTimeout(() => mapa.current?.invalidateSize(), 50) }, [])
+    useEffect(() => { mapa.current.getContainer().style.cursor = modo === 'agregar' ? 'crosshair' : '' }, [modo])
+  useEffect(() => {
+    const m = mapa.current
+    const ro = new ResizeObserver(() => m.invalidateSize())
+    ro.observe(m.getContainer())
+    return () => ro.disconnect()
+  }, [])
+  useEffect(() => {
+    const m = mapa.current
+    if (!m || !selId) return
+    const puntos = paradas.filter(p => p.ruta_id === selId).map(pt)
+    if (!puntos.length) return
+    setTimeout(() => {
+      m.invalidateSize()
+      if (puntos.length === 1) m.setView(puntos[0], Math.max(m.getZoom(), 15))
+      else m.fitBounds(L.latLngBounds(puntos), { padding: [50, 50], maxZoom: 17 })
+    }, 80)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selId, abiertoParadas, abiertoRutas])
+  useEffect(() => { setTimeout(() => mapa.current?.invalidateSize(), 50) }, [abiertoRutas, abiertoParadas, selId])
 
   const crearRuta = async e => {
     e.preventDefault()
@@ -110,60 +178,132 @@ export default function AdminRutas({ datos }) {
     await Promise.all([supabase.from('paradas').update({ orden: b.orden }).eq('id', a.id), supabase.from('paradas').update({ orden: a.orden }).eq('id', b.id)])
     recargar()
   }
-  const quitarEnlace = async id => { await supabase.from('rutas_enlaces').delete().eq('id', id); recargar() }
+  const quitarEnlace = async id => {
+    fallo(await supabase.from('rutas_enlaces').delete().eq('id', id))
+    await recargar()
+  }
 
-  const total = segs.reduce((s, [a, b]) => s + distanciaKm(pt(a), pt(b)), 0)
+  const segSel = segs.find(([a, b]) => a.id + ':' + b.id === lineaSel)
+  const formaSel = segSel?.[3]
+  const estiloSel = formaSel && formaSel.curva === false ? 'esquina' : 'curva'
+  const cambiarEstilo = curva => {
+    if (!segSel) return
+    guardarFormaTramo(sel.id, segSel[0].id, segSel[1].id, { puntos: formaSel?.puntos || [], curva })
+    setVForma(v => v + 1)
+  }
+  const dejarRecta = () => {
+    guardarFormaTramo(sel.id, segSel[0].id, segSel[1].id, null)
+    setVForma(v => v + 1)
+  }
+
+  const confirmarParada = async () => {
+    if (!paradaPendiente || guardandoParada) return
+    setGuardandoParada(true)
+    const r = fallo(await supabase.from('paradas').insert({
+      ruta_id: paradaPendiente.rutaId,
+      nombre: paradaPendiente.nombre,
+      latitud: paradaPendiente.latitud,
+      longitud: paradaPendiente.longitud,
+      orden: paradaPendiente.orden,
+      color: paradaPendiente.color,
+    }))
+    setGuardandoParada(false)
+    if (r.error) return
+    setParadaPendiente(null)
+    await recargar()
+  }
+
+  const total = segs.reduce((s, [a, b, , forma]) => s + distanciaTramoKm(a, b, forma), 0)
 
   return (
     <div className="adm-split">
       <div className="adm-lado">
-        <h3 className="adm-h">Rutas</h3>
-        <form onSubmit={crearRuta} className="adm-caja">
-          <b className="text-sm">Nueva ruta</b>
-          <input className="campo" placeholder="Nombre de la ruta" value={nueva.nombre} onChange={e => setNueva({ ...nueva, nombre: e.target.value })} required />
-          <div className="flex items-center gap-2 mb-2">
-            <input type="color" value={nueva.color} onChange={e => setNueva({ ...nueva, color: e.target.value })} />
-            <button className="btn-rojo flex-1">Crear ruta</button>
-          </div>
-        </form>
-        <div className="space-y-1 mb-3">
-          {rutas.map(r => (
-            <button key={r.id} onClick={() => { setSelId(r.id); setModo('ver') }} className={'adm-fila ' + (r.id === selId ? 'activa' : '')}>
-              <i className="leyenda-color" style={{ background: r.color }}></i>
-              <span className="flex-1 text-left">{r.nombre}</span>
-              <small>{paradas.filter(p => p.ruta_id === r.id).length} paradas</small>
-            </button>
-          ))}
+        <div className="adm-rutas-titulo">
+          <h3 className="adm-h">Rutas y paradas</h3>
+          <p>Organiza recorridos y edita sus puntos en el mapa.</p>
         </div>
-        <p className="text-xs text-gray-500">Paradas totales: <b>{paradas.length}</b></p>
+        <section className="adm-rutas-bloque">
+          <button type="button" className="adm-rutas-seccion-titulo adm-desplegable" aria-expanded={abiertoRutas} onClick={() => setAbiertoRutas(v => !v)}>
+            <span className="adm-rutas-numero">1</span>
+            <div><h4>Rutas</h4><small>{rutas.length} recorridos disponibles</small></div>
+            <i className={'fa fa-chevron-down adm-flecha ' + (abiertoRutas ? 'abierta' : '')} aria-hidden="true"></i>
+          </button>
+          {abiertoRutas && <>
+          <form onSubmit={crearRuta} className="adm-caja adm-ruta-nueva">
+            <b className="text-sm">Crear una ruta</b>
+            <input className="campo" placeholder="Nombre de la ruta" value={nueva.nombre} onChange={e => setNueva({ ...nueva, nombre: e.target.value })} required />
+            <div className="flex items-center gap-2 mb-2">
+              <input type="color" value={nueva.color} onChange={e => setNueva({ ...nueva, color: e.target.value })} aria-label="Color de la ruta" />
+              <button className="btn-rojo flex-1">Crear ruta</button>
+            </div>
+          </form>
+          <div className="adm-rutas-lista">
+            {rutas.map(r => (
+              <button key={r.id} onClick={() => { setSelId(r.id); setModo('ver'); setParadaPendiente(null) }} className={'adm-fila ' + (r.id === selId ? 'activa' : '')}>
+                <i className="leyenda-color" style={{ background: r.color }}></i>
+                <span className="flex-1 text-left">{r.nombre}</span>
+                <small>{paradas.filter(p => p.ruta_id === r.id).length} paradas</small>
+              </button>
+            ))}
+            {!rutas.length && <p className="adm-rutas-vacio">Todavía no hay rutas creadas.</p>}
+          </div>
+          <p className="adm-rutas-total">Paradas en total <b>{paradas.length}</b></p>
+                    </>}
+                  </section>
         {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
 
         {sel && (
-          <div className="adm-caja mt-3">
+          <section className="adm-rutas-bloque adm-paradas-bloque">
+            <button type="button" className="adm-rutas-seccion-titulo adm-desplegable" aria-expanded={abiertoParadas} onClick={() => setAbiertoParadas(v => !v)}>
+              <span className="adm-rutas-numero">2</span>
+              <div><h4>Paradas</h4><small>Ruta seleccionada: <b>{sel.nombre}</b></small></div>
+              <i className={'fa fa-chevron-down adm-flecha ' + (abiertoParadas ? 'abierta' : '')} aria-hidden="true"></i>
+            </button>
+            {abiertoParadas && <div className="adm-caja">
             <div className="flex gap-2 items-center mb-2">
               <input className="campo mb-0 flex-1" defaultValue={sel.nombre} key={sel.id + 'n'} onBlur={e => e.target.value !== sel.nombre && actualizarRuta({ nombre: e.target.value })} />
               <input type="color" value={sel.color} onChange={e => actualizarRuta({ color: e.target.value })} title="Color de la ruta y sus paradas" />
               <button className="btn-sec" onClick={eliminarRuta} title="Eliminar ruta"><i className="fa fa-trash"></i></button>
             </div>
             <div className="flex gap-1 mb-2 text-xs">
-              {[['ver', 'Ver'], ['agregar', 'Agregar paradas'], ['enlazar', 'Enlazar']].map(([k, t]) => (
-                <button key={k} className={'adm-tab ' + (modo === k ? 'activa' : '')} onClick={() => { setModo(k); setOrigen(null) }}>{t}</button>
+              {[['ver', 'Ver'], ['agregar', 'Agregar'], ['deformar', 'Deformar']].map(([k, t]) => (
+                <button key={k} className={'adm-tab ' + (modo === k ? 'activa' : '')} onClick={() => { setModo(k); setOrigen(null); setParadaPendiente(null); setLineaSel(null) }}>{t}</button>
               ))}
             </div>
             <p className="text-xs text-gray-500 mb-2">
-              {modo === 'agregar' && 'Haz clic en el mapa para crear una parada. Arrastra los pines para moverlas.'}
+              {modo === 'agregar' && 'Toca un punto del mapa para decidir si deseas agregar una parada.'}
               {modo === 'enlazar' && (origen ? `Origen: ${origen.nombre}. Elige la parada destino.` : 'Elige una parada de origen y luego otra de destino (ej. C → A).')}
+              {modo === 'deformar' && 'Modo deformar: dobla las líneas con tus dedos.'}
               {modo === 'ver' && 'Arrastra los pines para mover paradas, o edita sus coordenadas.'}
             </p>
             <p className="text-xs mb-2">{ps.length} paradas · distancia total {fmtKm(total)}</p>
+            {modo === 'deformar' && (
+              <div className="adm-deformar">
+                {segSel ? (
+                  <>
+                    <b>{segSel[0].nombre} → {segSel[1].nombre}</b>
+                    <div className="adm-deformar-chips">
+                      <button type="button" className={estiloSel === 'curva' ? 'activa' : ''} onClick={() => cambiarEstilo(true)}><i className="fa fa-share" aria-hidden="true"></i> Curva</button>
+                      <button type="button" className={estiloSel === 'esquina' ? 'activa' : ''} onClick={() => cambiarEstilo(false)}><i className="fa fa-location-arrow" aria-hidden="true"></i> Esquina</button>
+                      <button type="button" disabled={!formaSel?.puntos?.length} onClick={dejarRecta}><i className="fa fa-minus" aria-hidden="true"></i> Recta</button>
+                    </div>
+                  </>
+                ) : <span>Toca una línea para elegirla.</span>}
+                <small>Arrastra el círculo del medio de una línea para doblarla. Toca un punto para quitarlo.</small>
+              </div>
+            )}
             {ps.map((p, i) => (
               <div key={p.id} className="adm-parada">
                 <b style={{ color: sel.color }}>{i + 1}</b>
                 <div className="flex-1">
                   <input className="campo mb-1" defaultValue={p.nombre} key={p.id + p.nombre} onBlur={e => e.target.value !== p.nombre && actualizarParada(p, { nombre: e.target.value })} />
-                  <div className="flex gap-1">
+                  <div className="adm-coordenadas">
+                    <label><small>Latitud</small>
                     <input className="campo mb-0" defaultValue={p.latitud} key={p.id + 'la' + p.latitud} onBlur={e => +e.target.value !== p.latitud && !isNaN(+e.target.value) && actualizarParada(p, { latitud: +e.target.value })} />
+                    </label>
+                    <label><small>Longitud</small>
                     <input className="campo mb-0" defaultValue={p.longitud} key={p.id + 'lo' + p.longitud} onBlur={e => +e.target.value !== p.longitud && !isNaN(+e.target.value) && actualizarParada(p, { longitud: +e.target.value })} />
+                    </label>
                   </div>
                   <input className="campo mt-1 mb-0" placeholder="Descripción" defaultValue={p.descripcion || ''} key={p.id + 'd' + p.descripcion} onBlur={e => e.target.value !== (p.descripcion || '') && actualizarParada(p, { descripcion: e.target.value })} />
                 </div>
@@ -175,16 +315,44 @@ export default function AdminRutas({ datos }) {
               </div>
             ))}
             {segs.filter(s => s[2]).length > 0 && <b className="text-xs">Enlaces adicionales</b>}
-            {segs.filter(s => s[2]).map(([a, b, id]) => (
-              <div key={id} className="flex justify-between text-sm py-1">
-                <span>{a.nombre} → {b.nombre} ({fmtKm(distanciaKm(pt(a), pt(b)))})</span>
-                <button onClick={() => quitarEnlace(id)} className="text-primary"><i className="fa fa-times"></i></button>
+            {segs.filter(s => s[2]).map(([a, b, id, forma]) => (
+              <div key={id} className="adm-enlace-adicional">
+                <span>{a.nombre} → {b.nombre} ({fmtKm(distanciaTramoKm(a, b, forma))})</span>
+                <button type="button" onClick={() => quitarEnlace(id)} className="text-primary" title="Quitar enlace"><i className="fa fa-unlink" aria-hidden="true"></i></button>
               </div>
             ))}
+            </div>}
+          </section>
+        )}
+      </div>
+      <div className="adm-mapa-wrap">
+        <div className="adm-mapa" ref={el}></div>
+        {paradaPendiente && (
+          <div className="adm-parada-dialogo-fondo" onClick={() => !guardandoParada && setParadaPendiente(null)}>
+            <section
+              className="adm-parada-dialogo"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="adm-parada-dialogo-titulo"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="adm-parada-dialogo-icono"><i className="fa fa-map-marker" aria-hidden="true"></i></div>
+              <div className="adm-parada-dialogo-contenido">
+                <h3 id="adm-parada-dialogo-titulo">¿Deseas agregar una parada aquí?</h3>
+                <p>Se añadirá a <b>{sel?.nombre}</b> en esta ubicación:</p>
+                <small>{paradaPendiente.latitud}, {paradaPendiente.longitud}</small>
+              </div>
+              <div className="adm-parada-dialogo-acciones">
+                <button type="button" className="btn-sec" disabled={guardandoParada} onClick={() => setParadaPendiente(null)}>No, cancelar</button>
+                <button type="button" className="btn-rojo" disabled={guardandoParada} onClick={confirmarParada}>
+                  {guardandoParada ? 'Agregando…' : 'Sí, agregar'}
+                </button>
+              </div>
+            </section>
           </div>
         )}
       </div>
-      <div className="adm-mapa" ref={el}></div>
     </div>
   )
 }
+

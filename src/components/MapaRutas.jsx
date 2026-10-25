@@ -3,9 +3,10 @@ import L from 'leaflet'
 import { capturarMapa } from '../lib/capturaMapa'
 import { CENTRO } from '../hooks/useUbicacion'
 import { useAuth } from '../hooks/useAuth'
-import { distanciaKm, fmtKm, pos as pt, segmentosRuta } from '../lib/geo'
+import { coordenadasTramo, distanciaKm, distanciaTramoKm, fmtKm, pos as pt, segmentosRuta } from '../lib/geo'
 import { pdfMapa } from '../lib/exportar'
 import ExportarMapa from './ExportarMapa'
+import AvistamientoModal from './AvistamientoModal'
 
 export const svgPin = (color, texto) => L.divIcon({
   className: 'svg-pin', iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36],
@@ -14,7 +15,19 @@ export const svgPin = (color, texto) => L.divIcon({
     <circle cx="15" cy="15" r="9" fill="#fff"/>${texto ? `<text x="15" y="19" font-size="11" font-weight="700" text-anchor="middle" fill="${color}">${texto}</text>` : `<circle cx="15" cy="15" r="3.5" fill="${color}"/>`}</svg>`,
 })
 export const pinYo = svgPin('#7B1FA2')
-export const pinHide = svgPin('#D32F2F', 'H')
+export const pinHide = L.divIcon({
+  className: 'hide-mirador-pin',
+  iconSize: [38, 46],
+  iconAnchor: [19, 44],
+  popupAnchor: [0, -40],
+  html: `<svg width="38" height="46" viewBox="0 0 38 46" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M19 1C9 1 1 9 1 19c0 12 18 26 18 26s18-14 18-26C37 9 29 1 19 1z" fill="#D32F2F" stroke="#fff" stroke-width="2"/>
+    <circle cx="19" cy="18" r="12" fill="#fff"/>
+    <path d="M9 16l10-7 10 7h-3v8h-3v-6h-8v6h-3v-8z" fill="#7F1D1D"/>
+    <path d="M17 19h4v5h-4z" fill="#F59E0B"/>
+    <path d="M8 26h22M12 26v4m14-4v4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+})
 export const iconoParada = (color, n) => L.divIcon({
   className: 'parada-ico', iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -12],
   html: `<div style="background:${color};color:#fff;width:26px;height:26px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font:700 11px Inter,sans-serif">${n}</div>`,
@@ -38,8 +51,10 @@ export function agregarSelectorCapa(m, bases) {
       btn.type = 'button'
       let actual = 'Híbrido'
       const pintar = () => {
-        btn.innerHTML = actual === 'Híbrido' ? '<i class="fa fa-map-o"></i><span>Normal</span>' : '<i class="fa fa-globe"></i><span>Satélite</span>'
-        btn.title = actual === 'Híbrido' ? 'Cambiar a mapa normal' : 'Cambiar a satélite'
+        btn.innerHTML = actual === 'Híbrido' ? '<i class="fa fa-map-o" aria-hidden="true"></i>' : '<i class="fa fa-globe" aria-hidden="true"></i>'
+        btn.title = actual === 'Híbrido' ? 'Cambiar a mapa de calles' : 'Cambiar a satélite'
+        btn.setAttribute('aria-label', btn.title)
+        btn.setAttribute('aria-pressed', String(actual !== 'Híbrido'))
       }
       L.DomEvent.disableClickPropagation(div)
       btn.onclick = () => {
@@ -98,11 +113,12 @@ export function dibujarRutas(grupo, { rutas, paradas, enlaces }, { verParadas = 
   grupo.clearLayers()
   rutas.filter(r => !ocultas.has(r.id)).forEach(r => {
     const { paradas: ps, segs } = segmentosRuta(r, paradas, enlaces)
-    segs.forEach(([a, b]) => {
-      L.polyline([pt(a), pt(b)], { color: r.color, weight: 5, opacity: 0.85 }).addTo(grupo)
+    segs.forEach(([a, b, , forma]) => {
+      const coords = coordenadasTramo(a, b, forma)
+      L.polyline(coords, { color: r.color, weight: 5, opacity: 0.85, lineJoin: 'round', lineCap: 'round' }).addTo(grupo)
       if (verDist) {
-        const m = [(a.latitud + b.latitud) / 2, (a.longitud + b.longitud) / 2]
-        L.marker(m, { interactive: false, icon: L.divIcon({ className: 'dist-tip', html: `<span style="border-color:${r.color}">${fmtKm(distanciaKm(pt(a), pt(b)))}</span>`, iconSize: [0, 0] }) }).addTo(grupo)
+        const m = coords[Math.floor(coords.length / 2)]
+        L.marker(m, { interactive: false, icon: L.divIcon({ className: 'dist-tip', html: `<span style="border-color:${r.color}">${fmtKm(distanciaTramoKm(a, b, forma))}</span>`, iconSize: [0, 0] }) }).addTo(grupo)
       }
     })
     if (verParadas && !sinParadas.has(r.id)) {
@@ -122,6 +138,8 @@ export default function MapaRutas({ activa, pos, datos }) {
   const { rol, puede } = useAuth()
   const { rutas, paradas, enlaces, hides } = datos
   const registrado = rol !== 'invitado'
+  const puedeAvistar = rol === 'turista' && puede('crear_avistamiento') !== false
+  const [hideAvistar, setHideAvistar] = useState(null)
   const contenedor = useRef(null)
   const mapa = useRef(null)
   const capa = useRef(null)
@@ -136,7 +154,7 @@ export default function MapaRutas({ activa, pos, datos }) {
   const [panel, setPanel] = useState(false)
 
   useEffect(() => {
-    const m = L.map(contenedor.current, { zoomControl: true, preferCanvas: true }).setView(CENTRO, 7)
+    const m = L.map(contenedor.current, { zoomControl: false, preferCanvas: true }).setView(CENTRO, 7)
     const bases = capasBase()
     bases.Híbrido.addTo(m)
     agregarBuscador(m)
@@ -165,13 +183,28 @@ export default function MapaRutas({ activa, pos, datos }) {
     dibujarRutas(capa.current, datos, { verParadas, verDist: verDist && registrado, ocultas })
     if (registrado && verHides) {
       hides.forEach(h => L.marker(pt(h), { icon: pinHide }).addTo(capa.current)
-        .bindPopup(`<b>${esc(h.nombre)}</b>${h.descripcion ? '<br>' + esc(h.descripcion) : ''}<br><a target="_blank" rel="noreferrer" href="https://www.google.com/maps/dir/?api=1&destination=${h.latitud},${h.longitud}">Cómo llegar</a>`))
+        .bindPopup(`<div class="hide-popup"><b>${esc(h.nombre)}</b>${h.descripcion ? '<small>' + esc(h.descripcion) + '</small>' : ''}${puedeAvistar
+          ? `<button type="button" class="hide-popup-btn" data-avistar="${esc(h.id)}"><i class="fa fa-binoculars"></i> Hacer avistamiento</button>`
+          : ''}</div>`))
     }
     if (!encuadrado.current && (paradas.length || hides.length)) {
       const puntos = [...paradas.map(pt), ...(registrado ? hides.map(pt) : [])]
       if (puntos.length) { m.fitBounds(L.latLngBounds(puntos), { padding: [60, 60], animate: false }); encuadrado.current = true }
     }
-  }, [datos, ocultas, verHides, verParadas, verDist, registrado, hides, paradas])
+  }, [datos, ocultas, verHides, verParadas, verDist, registrado, hides, paradas, puedeAvistar])
+
+  useEffect(() => {
+    const cont = mapa.current?.getContainer()
+    if (!cont) return
+    const alClick = e => {
+      const b = e.target.closest?.('[data-avistar]')
+      if (!b) return
+      mapa.current.closePopup()
+      setHideAvistar(b.dataset.avistar)
+    }
+    cont.addEventListener('click', alClick)
+    return () => cont.removeEventListener('click', alClick)
+  }, [])
 
   useEffect(() => {
     if (!activa) { mapa.current?.stop(); return }
@@ -245,6 +278,7 @@ export default function MapaRutas({ activa, pos, datos }) {
         {!registrado && <p className="text-xs text-primary mt-1">Mapa informativo. Regístrate para ver Hide, distancias y exportar.</p>}
       </div>
 
+      {hideAvistar && <AvistamientoModal datos={datos} hideInicial={hideAvistar} onCerrar={() => setHideAvistar(null)} onCreado={() => setHideAvistar(null)} />}
       {modalExp && <ExportarMapa rutas={resumen} hayHides={hides.length > 0} generando={generando} onGenerar={generar} onCerrar={() => setModalExp(false)} />}
       {resultado && (
         <div className="modal-fondo" onMouseDown={e => e.target === e.currentTarget && setResultado(null)}>

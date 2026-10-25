@@ -33,11 +33,22 @@ export default function AdminPanel() {
   const alternarTema = () => setClaro(c => { localStorage.setItem('adm_tema', c ? 'oscuro' : 'claro'); return !c })
   const [movil, setMovil] = useState(false)
   const [pendientes, setPendientes] = useState(0)
+  const [conectado, setConectado] = useState(() => navigator.onLine)
 
   useEffect(() => {
     supabase.from('avistamientos').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente')
       .then(({ count }) => setPendientes(count || 0))
   }, [mod])
+
+  useEffect(() => {
+    const actualizarConexion = () => setConectado(navigator.onLine)
+    window.addEventListener('online', actualizarConexion)
+    window.addEventListener('offline', actualizarConexion)
+    return () => {
+      window.removeEventListener('online', actualizarConexion)
+      window.removeEventListener('offline', actualizarConexion)
+    }
+  }, [])
 
   const vista = {
     dashboard: <AdminDashboard datos={datos} ir={setMod} />,
@@ -74,7 +85,9 @@ export default function AdminPanel() {
           </div>
           <div className="adm-top-der">
             <button className="adm-tema" onClick={alternarTema} title={claro ? 'Tema oscuro' : 'Tema claro'}><span>{claro ? 'Claro' : 'Oscuro'}</span><span className="sw"><i className={'fa ' + (claro ? 'fa-sun-o' : 'fa-moon-o')}></i></span></button>
-            <span className="adm-badge"><i className="fa fa-circle"></i> Conectado</span>
+            <span className={'adm-badge ' + (conectado ? 'conectado' : 'desconectado')} title={conectado ? 'Conexión disponible' : 'Sin conexión a internet'} aria-label={conectado ? 'Conectado' : 'Desconectado'} role="status">
+              <i className="fa fa-circle"></i>
+            </span>
           </div>
         </div>
         <section className="adm-contenido">
