@@ -1,11 +1,11 @@
 const VIDEOS = [
   {
-    titulo: 'Videos de la Paraba Roja',
+    titulo: 'Videos de la Paraba Frente Roja',
     src: 'https://www.youtube.com/embed/U2veayfNHLw',
   },
   {
     titulo: 'Estado Plurinacional de Bolivia',
-    texto: 'Hogar único de la Paraba Roja, especie endémica de los valles secos interandinos.',
+    texto: 'Hogar único de la Paraba Frente Roja, especie endémica de los valles secos interandinos.',
     src: 'https://www.youtube.com/embed?listType=search&list=Estado+Plurinacional+de+Bolivia+naturaleza+biodiversidad',
   },
 ]
@@ -18,7 +18,7 @@ export default function Inicio({ activa, clima, lugar }) {
     <>
       <section data-vista="inicio" className={'relative h-[80vh] flex items-center overflow-hidden' + oculta}>
         <div className="absolute inset-0 z-0">
-          <img src="/portada-paraba.jpg" alt="Paraba Roja en su hábitat" className="w-full h-full object-cover" />
+          <img src="/portada-paraba.jpg" alt="Paraba Frente Roja en su hábitat" className="w-full h-full object-cover" />
           <div className="absolute inset-0 hero-gradient"></div>
         </div>
 
@@ -29,7 +29,7 @@ export default function Inicio({ activa, clima, lugar }) {
             <div className="lg:col-span-2">
               <h2 className="text-[clamp(2rem,5vw,3.5rem)] font-bold leading-tight mb-4">
                 <span className="hero-largo">Descubre y protege <br />
-                  <span className="text-primary">a la Paraba Roja</span> en su hábitat natural</span>
+                  <span className="text-primary">a la Paraba Frente Roja</span> en su hábitat natural</span>
                 <span className="hero-corto"><span className="text-primary">Paraba</span> Frente Roja</span>
               </h2>
               <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-2xl">
@@ -48,7 +48,7 @@ export default function Inicio({ activa, clima, lugar }) {
             <div className="bg-white/95 text-gray-800 rounded-lg p-6 shadow-xl backdrop-blur-sm">
               <h3 className="font-bold text-lg mb-3">¿Sabías qué?</h3>
               <p className="text-gray-600 mb-5 text-sm">
-                La Paraba Roja (<em>Ara rubrogenys</em>) es una especie endémica de Bolivia, catalogada como <strong>En Peligro Crítico</strong> por la UICN. Se estima una población de apenas 670–1,200 individuos maduros.
+                La Paraba Frente Roja (<em>Ara rubrogenys</em>) es una especie endémica de Bolivia, catalogada como <strong>En Peligro Crítico</strong> por la UICN. Se estima una población de apenas 670–1,200 individuos maduros.
               </p>
               <button data-ir="ficha" className="w-full bg-primary hover:bg-primary/90 text-white py-2 rounded-md transition">
                 Conoce más
