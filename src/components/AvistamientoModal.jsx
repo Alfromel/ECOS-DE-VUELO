@@ -13,9 +13,18 @@ export default function AvistamientoModal({ datos, onCerrar, onCreado, hideInici
   const set = k => e => setF({ ...f, [k]: e.target.value })
   const paradasRuta = datos.paradas.filter(p => p.ruta_id === f.ruta_id)
 
-  const miUbicacion = () => navigator.geolocation?.getCurrentPosition(
-    p => setF(v => ({ ...v, lat: p.coords.latitude.toFixed(6), lon: p.coords.longitude.toFixed(6) })),
-    () => setError('No se pudo obtener tu ubicación'))
+  const [ubicando, setUbicando] = useState(false)
+  const miUbicacion = () => {
+    if (!navigator.geolocation) return setError('Tu dispositivo no permite obtener la ubicación')
+    setError(null); setUbicando(true)
+    navigator.geolocation.getCurrentPosition(
+      p => { setUbicando(false); setF(v => ({ ...v, lat: p.coords.latitude.toFixed(6), lon: p.coords.longitude.toFixed(6) })) },
+      er => {
+        setUbicando(false)
+        setError(er.code === 1 ? 'Permiso de ubicación denegado. Actívalo en los ajustes del navegador.' : er.code === 3 ? 'Se agotó el tiempo esperando el GPS. Inténtalo de nuevo al aire libre.' : 'No se pudo obtener tu ubicación')
+      },
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 })
+  }
 
   const enviar = async e => {
     e.preventDefault()
@@ -82,7 +91,9 @@ export default function AvistamientoModal({ datos, onCerrar, onCreado, hideInici
           <input className="campo" placeholder="Latitud" value={f.lat} onChange={set('lat')} />
           <input className="campo" placeholder="Longitud" value={f.lon} onChange={set('lon')} />
         </div>
-        <button type="button" className="text-sm text-primary mb-2" onClick={miUbicacion}><i className="fa fa-crosshairs"></i> Usar mi ubicación</button>
+        <button type="button" className="text-sm text-primary mb-2" onClick={miUbicacion} disabled={ubicando}>
+          <i className={'fa ' + (ubicando ? 'fa-spinner fa-spin' : 'fa-crosshairs')}></i> {ubicando ? 'Obteniendo ubicación…' : 'Usar mi ubicación'}
+        </button>
         <label className="block text-sm mb-2">Fotos (máx. 3)
           <input type="file" accept="image/*" multiple className="block mt-1" onChange={e => setFotos([...e.target.files].slice(0, 3))} />
         </label>

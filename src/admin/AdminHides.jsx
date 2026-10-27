@@ -50,6 +50,12 @@ export default function AdminHides({ datos }) {
     else setPendiente({ lat, lon })
   }
 
+  const ver = h => {
+    const m = mapa.current
+    if (m) m.flyTo(pt(h), Math.max(m.getZoom(), 16.75), { duration: 1 })
+    document.querySelector('.adm-mapa-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+
   const editar = h => {
     setF({ id: h.id, nombre: h.nombre, descripcion: h.descripcion || '', latitud: h.latitud, longitud: h.longitud, ruta_id: h.ruta_id || '', parada_id: h.parada_id || '' })
     sugerir(h.latitud, h.longitud, false)
@@ -163,10 +169,12 @@ export default function AdminHides({ datos }) {
         </div>
         <div className="space-y-1 mb-3">
           {hides.map(h => (
-            <button key={h.id} onClick={() => editar(h)} className={'adm-fila ' + (f?.id === h.id ? 'activa' : '')}>
+            <div key={h.id} className={'adm-fila ' + (f?.id === h.id ? 'activa' : '')}>
               <span className="hide-mini-mirador" aria-hidden="true"><i className="fa fa-binoculars"></i></span>
-              <span className="flex-1 text-left">{h.nombre}<small className="block text-gray-500">{[nombreRuta(h.ruta_id), nombreParada(h.parada_id)].filter(Boolean).join(' · ') || 'Sin ruta'}</small></span>
-            </button>
+              <span className="flex-1 text-left min-w-0">{h.nombre}<small className="block text-gray-500">{[nombreRuta(h.ruta_id), nombreParada(h.parada_id)].filter(Boolean).join(' · ') || 'Sin ruta'}</small></span>
+              <button type="button" className="adm-ico-btn" onClick={() => ver(h)} aria-label={'Ir a ' + h.nombre} title="Ver en el mapa"><i className="fa fa-eye" aria-hidden="true"></i></button>
+              <button type="button" className="adm-ico-btn" onClick={() => editar(h)} aria-label={'Editar ' + h.nombre} title="Editar"><i className="fa fa-pencil" aria-hidden="true"></i></button>
+            </div>
           ))}
         </div>
         {f && (

@@ -139,6 +139,18 @@ export function dibujarRutas(grupo, { rutas, paradas, enlaces }, { verParadas = 
   })
 }
 
+const TRAZOS = {
+  ruta: <><circle cx="6" cy="19" r="2.5" /><circle cx="18" cy="5" r="2.5" /><path d="M8.5 19H15a3.5 3.5 0 0 0 0-7H9a3.5 3.5 0 0 1 0-7h6.5" /></>,
+  hide: <><path d="M3 11l9-7 9 7" /><path d="M5 10v9h14v-9" /><circle cx="9.5" cy="14.5" r="2" /><circle cx="14.5" cy="14.5" r="2" /></>,
+  capas: <><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 12.5l9 5 9-5" /><path d="M3 16.5l9 5 9-5" /></>,
+  ir: <><path d="M4 12h15" /><path d="M13 6l6 6-6 6" /></>,
+  x: <><path d="M6 6l12 12M18 6L6 18" /></>,
+  descargar: <><path d="M12 4v11" /><path d="M7 11l5 5 5-5" /><path d="M5 20h14" /></>,
+}
+const Ico = ({ n }) => (
+  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{TRAZOS[n]}</svg>
+)
+
 export default function MapaRutas({ activa, pos, datos }) {
   const { rol, puede } = useAuth()
   const { rutas, paradas, enlaces, hides } = datos
@@ -156,7 +168,20 @@ export default function MapaRutas({ activa, pos, datos }) {
   const [modalExp, setModalExp] = useState(false)
   const [resultado, setResultado] = useState(null)
   const [generando, setGenerando] = useState(false)
-  const [panel, setPanel] = useState(false)
+  const [panel, setPanel] = useState(null)
+  const alternarPanel = nombre => setPanel(p => (p === nombre ? null : nombre))
+  const irARuta = r => {
+    const pts = paradas.filter(p => p.ruta_id === r.id).map(pt)
+    setOcultas(o => { const n = new Set(o); n.delete(r.id); return n })
+    setPanel(null)
+    if (pts.length > 1) mapa.current?.flyToBounds(L.latLngBounds(pts), { padding: [50, 50], duration: 1.2 })
+    else if (pts.length) mapa.current?.flyTo(pts[0], 15, { duration: 1.2 })
+  }
+  const irAHide = h => {
+    setVerHides(true)
+    setPanel(null)
+    mapa.current?.flyTo(pt(h), Math.max(mapa.current.getZoom(), 17), { duration: 1.2 })
+  }
 
   useEffect(() => {
     const m = L.map(contenedor.current, { zoomControl: false, preferCanvas: true }).setView(CENTRO, 7)
@@ -249,10 +274,52 @@ export default function MapaRutas({ activa, pos, datos }) {
     <div className={'bg-white rounded-xl shadow-md p-5' + (activa ? '' : ' vista-oculta')} id="mapa-card" data-vista="mapa">
       <div id="mapa" ref={contenedor} className="relative w-full h-64 bg-green-50 overflow-hidden z-0"></div>
 
-      <button className="mapa-fab" onClick={() => setPanel(p => !p)} aria-label="Rutas y leyenda">`n        <i className={'fa ' + (panel ? 'fa-times' : 'fa-list-ul')}></i> {panel ? 'Cerrar' : 'Rutas y leyenda'}`n      </button>`n`n      <div className={'mapa-panel' + (panel ? ' abierto' : '')}>
-        <div className="flex items-center justify-between gap-2">
-          <b>Rutas</b>
-          <span className="text-xs text-gray-500">{paradas.length} paradas totales</span>
+      <div className="mapa-fabs">
+        <button type="button" className={'mapa-fab' + (panel === 'rutas' ? ' on' : '')} onClick={() => alternarPanel('rutas')} aria-label="Rutas" title="Rutas">
+          <Ico n="ruta" />
+        </button>
+        {registrado && (
+          <button type="button" className={'mapa-fab' + (panel === 'hides' ? ' on' : '')} onClick={() => alternarPanel('hides')} aria-label="Hides" title="Hides">
+            <Ico n="hide" />
+          </button>
+        )}
+        <button type="button" className={'mapa-fab' + (panel === 'capas' ? ' on' : '')} onClick={() => alternarPanel('capas')} aria-label="Capas y leyenda" title="Capas y leyenda">
+          <Ico n="capas" />
+        </button>
+      </div>
+
+      {panel === 'rutas' && (
+        <div className="mapa-panel abierto">
+          <div className="mapa-panel-cab"><b>Rutas</b><button type="button" className="mapa-x" onClick={() => setPanel(null)} aria-label="Cerrar"><Ico n="x" /></button></div>
+          {!resumen.length && <p className="text-xs text-gray-500">Aún no hay rutas publicadas.</p>}
+          {resumen.map(r => (
+            <div key={r.id} className="mapa-hide-fila">
+              <i className="leyenda-color" style={{ background: r.color }}></i>
+              <span className="flex-1 min-w-0"><b className="block truncate">{r.nombre}</b><small className="block text-gray-500">{r.n} paradas{registrado ? ' · ' + fmtKm(r.km) : ''}</small></span>
+              <button type="button" className="mapa-ico-btn" onClick={() => irARuta(r)} aria-label={'Ir a ' + r.nombre} title="Ir a la ruta"><Ico n="ir" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {panel === 'hides' && registrado && (
+        <div className="mapa-panel abierto">
+          <div className="mapa-panel-cab"><b>Hides</b><button type="button" className="mapa-x" onClick={() => setPanel(null)} aria-label="Cerrar"><Ico n="x" /></button></div>
+          {!hides.length && <p className="text-xs text-gray-500">Aún no hay Hides registrados.</p>}
+          {hides.map(h => (
+            <div key={h.id} className="mapa-hide-fila">
+              <span className="mapa-hide-ico"><Ico n="hide" /></span>
+              <span className="flex-1 min-w-0"><b className="block truncate">{h.nombre}</b>{h.descripcion && <small className="block truncate text-gray-500">{h.descripcion}</small>}</span>
+              <button type="button" className="mapa-ico-btn" onClick={() => irAHide(h)} aria-label={'Ir a ' + h.nombre} title="Ir al Hide"><Ico n="ir" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={'mapa-panel' + (panel === 'capas' ? ' abierto' : '')}>
+        <div className="mapa-panel-cab">
+          <b>Capas y leyenda</b>
+          <button type="button" className="mapa-x" onClick={() => setPanel(null)} aria-label="Cerrar"><Ico n="x" /></button>
         </div>
         {!resumen.length && <p className="text-xs text-gray-500">Aún no hay rutas publicadas.</p>}
         {resumen.map(r => (
@@ -278,7 +345,9 @@ export default function MapaRutas({ activa, pos, datos }) {
           <div>Mapa / Satélite: botón superior izquierdo</div>
         </div>
         {registrado && puede('exportar_mapa') && (
-          <button className="btn-rojo w-full mt-2" onClick={() => setModalExp(true)}><i className="fa fa-download"></i> Descargar / compartir</button>
+          <button type="button" className="mapa-ico-btn mapa-ico-exp"           onClick={() => { setPanel(null); setModalExp(true) }} aria-label="Descargar o compartir" title="Descargar o compartir">
+                     <Ico n="descargar" />
+          </button>
         )}
         {!registrado && <p className="text-xs text-primary mt-1">Mapa informativo. Regístrate para ver Hide, distancias y exportar.</p>}
       </div>

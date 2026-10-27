@@ -42,6 +42,12 @@ export default function App() {
     return () => window.removeEventListener('resize', fijar)
   }, [vista])
 
+  useEffect(() => {
+    // La barra de estado del celular toma el color del encabezado (verde en Inicio, claro en el resto)
+    const color = vista === 'inicio' ? '#1a2e22' : '#F2F2F7'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
+  }, [vista])
+
   const grid1 = vista === 'mapa' || vista === 'clima'
   const grid2 = ['recomendaciones', 'hide', 'reportes', 'ave'].includes(vista)
   const oculto = visible => (visible ? '' : ' vista-oculta')
