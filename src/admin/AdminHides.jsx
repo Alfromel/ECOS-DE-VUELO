@@ -17,6 +17,7 @@ export default function AdminHides({ datos }) {
   const [sugerido, setSugerido] = useState(null)
   const [error, setError] = useState(null)
   const [guardando, setGuardando] = useState(false)
+  const [coordTexto, setCoordTexto] = useState('')
   const el = useRef(null)
   const mapa = useRef(null)
   const capa = useRef(null)
@@ -101,6 +102,18 @@ export default function AdminHides({ datos }) {
     if (v.latitud !== '' && v.longitud !== '' && !isNaN(+v.latitud) && !isNaN(+v.longitud)) sugerir(+v.latitud, +v.longitud, true)
   }
 
+  const aplicarCoordenadas = () => {
+    const c = mapa.current?.getCenter()
+    const lista = paradasRef.current
+    const ref = lista.length ? { lat: lista[0].latitud, lng: lista[0].longitud } : c ? { lat: c.lat, lng: c.lng } : { lat: CENTRO[0], lng: CENTRO[1] }
+    const par = leerCoordenadas(coordTexto, ref)
+    if (!par) return setError('Coordenadas no válidas. Usa "lat, lng" o un código como V3VR+3QX')
+    setError(null)
+    setF({ ...f, latitud: par.lat, longitud: par.lng })
+    sugerir(par.lat, par.lng, true)
+    setCoordTexto('')
+  }
+
   const guardar = async e => {
     e.preventDefault()
     if (guardando) return
@@ -149,9 +162,15 @@ export default function AdminHides({ datos }) {
         {f && (
           <form className="adm-caja" onSubmit={guardar}>
             <b className="text-sm">{f.id ? 'Editar Hide' : 'Nuevo Hide'}</b>
-            <p className="text-xs text-gray-500 mb-2">Haz clic en el mapa, arrastra el pin o pega las coordenadas (<code>-18.1068, -64.9165</code>) o un código Plus (<code>V3VR+3QX</code>) en Latitud.</p>
+            <p className="text-xs text-gray-500 mb-2">Haz clic en el mapa, arrastra el pin o usa el campo de coordenadas.</p>
             <input className="campo" placeholder="Nombre" value={f.nombre} onChange={set('nombre')} required />
             <textarea className="campo" rows={2} placeholder="Descripción" value={f.descripcion} onChange={set('descripcion')} />
+            <div className="flex gap-2 items-end mb-2">
+              <label className="flex-1"><small>Coordenadas o código Plus</small>
+                <input className="campo mb-0" placeholder="-18.106872, -64.916535  ó  V3VR+3QX" value={coordTexto} onChange={e => setCoordTexto(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); aplicarCoordenadas() } }} /></label>
+              <button type="button" className="btn-rojo" disabled={!coordTexto.trim()} onClick={aplicarCoordenadas}>Agregar</button>
+            </div>
             <div className="flex gap-1">
               <input className="campo" placeholder="Latitud" value={f.latitud} onChange={cambioCoord('latitud')} />
               <input className="campo" placeholder="Longitud" value={f.longitud} onChange={cambioCoord('longitud')} />
