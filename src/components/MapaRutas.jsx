@@ -12,7 +12,7 @@ export const svgPin = (color, texto) => L.divIcon({
   className: 'svg-pin', iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36],
   html: `<svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
     <path d="M15 0C6.7 0 0 6.7 0 15c0 11 15 25 15 25s15-14 15-25C30 6.7 23.3 0 15 0z" fill="${color}"/>
-    <circle cx="15" cy="15" r="9" fill="#fff"/>${texto ? `<text x="15" y="19" font-size="11" font-weight="700" text-anchor="middle" fill="${color}">${texto}</text>` : `<circle cx="15" cy="15" r="3.5" fill="${color}"/>`}</svg>`,
+    <circle cx="15" cy="15" r="9" fill="#fff"/>${texto !== undefined && texto !== null ? `<text x="15" y="19" font-size="11" font-weight="700" text-anchor="middle" fill="${color}">${texto}</text>` : `<circle cx="15" cy="15" r="3.5" fill="${color}"/>`}</svg>`,
 })
 export const pinYo = svgPin('#7B1FA2')
 export const pinHide = L.divIcon({
@@ -124,8 +124,8 @@ export function dibujarRutas(grupo, { rutas, paradas, enlaces }, { verParadas = 
     if (verParadas && !sinParadas.has(r.id)) {
       ps.forEach((p, i) => {
         const ant = ps[i - 1]
-        L.marker(pt(p), { icon: iconoParada(p.color || r.color, i + 1) }).addTo(grupo).bindPopup(
-          `<b>${esc(p.nombre)}</b><br><small style="color:${r.color}">● ${esc(r.nombre)} · parada ${i + 1} de ${ps.length}</small>` +
+        L.marker(pt(p), { icon: iconoParada(p.color || r.color, i) }).addTo(grupo).bindPopup(
+          `<b>${esc(p.nombre)}</b><br><small style="color:${r.color}">● ${esc(r.nombre)} · parada ${i} de ${ps.length - 1}</small>` +
           (p.descripcion ? `<br>${esc(p.descripcion)}` : '') +
           `<br><small>${p.latitud.toFixed(5)}, ${p.longitud.toFixed(5)}</small>` +
           (ant ? `<br><small>Desde ${esc(ant.nombre)}: ${fmtKm(distanciaKm(pt(ant), pt(p)))}</small>` : ''))

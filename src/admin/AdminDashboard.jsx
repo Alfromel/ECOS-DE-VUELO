@@ -28,7 +28,7 @@ export default function AdminDashboard({ datos, ir }) {
     return () => { vivo = false }
   }, [])
 
-  if (!d) return <p className="p-6">Cargando estadísticas…</p>
+  if (!d) return <p className="adm-cargando"><i className="fa fa-spinner fa-spin"></i> Cargando estadísticas…</p>
 
   const turistas = d.perfiles.filter(p => p.rol === 'turista')
   const estado = e => d.avs.filter(a => a.estado === e).length

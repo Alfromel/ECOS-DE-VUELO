@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth'
 import { CENTRO } from '../hooks/useUbicacion'
 import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, pinHide } from '../components/MapaRutas'
 import { fmtKm, pos as pt, paradaCercana } from '../lib/geo'
+import { leerCoordenadas } from '../lib/coordenadas'
 import { agregarControlRotacion, opcionesRotacionAdmin } from '../lib/rotacionMapa'
 
 const vacio = { id: null, nombre: '', descripcion: '', latitud: '', longitud: '', ruta_id: '', parada_id: '' }
@@ -15,6 +16,7 @@ export default function AdminHides({ datos }) {
   const [f, setF] = useState(null) // formulario (nuevo o edición)
   const [sugerido, setSugerido] = useState(null)
   const [error, setError] = useState(null)
+  const [guardando, setGuardando] = useState(false)
   const el = useRef(null)
   const mapa = useRef(null)
   const capa = useRef(null)
@@ -64,8 +66,9 @@ export default function AdminHides({ datos }) {
       if (f?.id === h.id) return
       L.marker(pt(h), { icon: pinHide }).addTo(capa.current).bindTooltip(h.nombre).on('click', () => editar(h))
     })
-    if (!ajustado.current && (hides.length || paradas.length)) {
-      mapa.current.fitBounds(L.latLngBounds([...hides.map(pt), ...paradas.map(pt)]), { padding: [50, 50], animate: false })
+    const todos = [...hides.map(pt), ...paradas.map(pt)]
+    if (!ajustado.current && todos.length) {
+      if (todos.length > 1) mapa.current.fitBounds(L.latLngBounds(todos), { padding: [50, 50], maxZoom: 13, animate: false })
       ajustado.current = true
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -83,14 +86,26 @@ export default function AdminHides({ datos }) {
 
   const set = k => e => setF({ ...f, [k]: e.target.value })
   const cambioCoord = k => e => {
-    const v = { ...f, [k]: e.target.value }
+    const texto = e.target.value
+    const c = mapa.current?.getCenter()
+    const lista = paradasRef.current
+    const ref = lista.length ? { lat: lista[0].latitud, lng: lista[0].longitud } : c ? { lat: c.lat, lng: c.lng } : { lat: CENTRO[0], lng: CENTRO[1] }
+    const par = /[,;+]|\s/.test(texto.trim()) ? leerCoordenadas(texto, ref) : null
+    if (par) {
+      setF({ ...f, latitud: par.lat, longitud: par.lng })
+      sugerir(par.lat, par.lng, true)
+      return
+    }
+    const v = { ...f, [k]: texto }
     setF(v)
     if (v.latitud !== '' && v.longitud !== '' && !isNaN(+v.latitud) && !isNaN(+v.longitud)) sugerir(+v.latitud, +v.longitud, true)
   }
 
   const guardar = async e => {
     e.preventDefault()
+    if (guardando) return
     if (isNaN(+f.latitud) || isNaN(+f.longitud) || f.latitud === '' || f.longitud === '') return setError('Indica coordenadas o haz clic en el mapa')
+    setGuardando(true)
     const fila = {
       nombre: f.nombre, descripcion: f.descripcion, latitud: +f.latitud, longitud: +f.longitud,
       ruta_id: f.ruta_id || null, parada_id: f.parada_id || null, actualizado_en: new Date().toISOString(),
@@ -98,15 +113,18 @@ export default function AdminHides({ datos }) {
     const r = f.id
       ? await supabase.from('hides').update(fila).eq('id', f.id)
       : await supabase.from('hides').insert({ ...fila, creado_por: perfil.id })
-    if (r.error) return setError(r.error.message)
-    setError(null); setF(null); setSugerido(null); recargar()
+    if (r.error) { setGuardando(false); return setError(r.error.message) }
+    setError(null); setF(null); setSugerido(null); await recargar()
+    setGuardando(false)
   }
 
   const eliminar = async () => {
-    if (!confirm(`¿Eliminar "${f.nombre}"?`)) return
+    if (guardando || !confirm(`¿Eliminar "${f.nombre}"?`)) return
+    setGuardando(true)
     const r = await supabase.from('hides').delete().eq('id', f.id)
-    if (r.error) return setError(r.error.message)
-    setF(null); recargar()
+    if (r.error) { setGuardando(false); return setError(r.error.message) }
+    setF(null); await recargar()
+    setGuardando(false)
   }
 
   const paradasRuta = paradas.filter(p => p.ruta_id === f?.ruta_id)
@@ -131,7 +149,7 @@ export default function AdminHides({ datos }) {
         {f && (
           <form className="adm-caja" onSubmit={guardar}>
             <b className="text-sm">{f.id ? 'Editar Hide' : 'Nuevo Hide'}</b>
-            <p className="text-xs text-gray-500 mb-2">Haz clic en el mapa, arrastra el pin o escribe las coordenadas.</p>
+            <p className="text-xs text-gray-500 mb-2">Haz clic en el mapa, arrastra el pin o pega las coordenadas (<code>-18.1068, -64.9165</code>) o un código Plus (<code>V3VR+3QX</code>) en Latitud.</p>
             <input className="campo" placeholder="Nombre" value={f.nombre} onChange={set('nombre')} required />
             <textarea className="campo" rows={2} placeholder="Descripción" value={f.descripcion} onChange={set('descripcion')} />
             <div className="flex gap-1">
@@ -153,9 +171,9 @@ export default function AdminHides({ datos }) {
             </select>
             {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
             <div className="flex gap-2">
-              <button className="btn-rojo flex-1">Guardar</button>
-              <button type="button" className="btn-sec" onClick={() => setF(null)}>Cancelar</button>
-              {f.id && <button type="button" className="btn-sec" onClick={eliminar}><i className="fa fa-trash"></i></button>}
+              <button className="btn-rojo flex-1" disabled={guardando}>{guardando ? <><i className="fa fa-spinner fa-spin"></i> Guardando…</> : 'Guardar'}</button>
+              <button type="button" className="btn-sec" disabled={guardando} onClick={() => setF(null)}>Cancelar</button>
+              {f.id && <button type="button" className="btn-sec" disabled={guardando} onClick={eliminar}><i className="fa fa-trash"></i></button>}
             </div>
           </form>
         )}

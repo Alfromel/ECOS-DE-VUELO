@@ -550,3 +550,13 @@
 .hide-ver-mapa{position:absolute;top:.8rem;right:.8rem;display:grid;place-items:center;width:2.4rem;height:2.4rem;border-radius:50%;background:#D32F2F;color:#fff;box-shadow:0 4px 12px rgba(211,47,47,.4);transition:transform .15s}
 .hide-ver-mapa:hover{transform:scale(1.08)}
 .hide-modulo h3{padding-right:3rem}
+
+.hide-filtro{display:flex;flex-wrap:wrap;gap:.5rem}
+.hide-chip{display:inline-flex;align-items:center;gap:.45rem;padding:.45rem .9rem;border-radius:999px;border:1px solid var(--bd);background:var(--f3);color:var(--tx2);font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s}
+.hide-chip:hover{border-color:var(--ac)}
+.hide-chip span{background:var(--f4);color:var(--mu);border-radius:999px;padding:0 .5rem;font-size:.72rem}
+.hide-chip.activa{background:var(--ac);border-color:var(--ac);color:#fff;box-shadow:0 2px 8px rgba(211,47,47,.35)}
+.hide-chip.activa span{background:rgba(255,255,255,.25);color:#fff}
+
+.adm-cargando{display:flex;align-items:center;justify-content:center;gap:.6rem;padding:2rem;color:var(--mu);font-size:.95rem}
+button:disabled{opacity:.6;cursor:not-allowed}

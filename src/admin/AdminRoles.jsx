@@ -7,6 +7,8 @@ export default function AdminRoles() {
   const [usuarios, setUsuarios] = useState([])
   const [permisos, setPermisos] = useState({})
   const [error, setError] = useState(null)
+  const [cargando, setCargando] = useState(true)
+  const [ocupado, setOcupado] = useState(null)
 
   const cargar = async () => {
     const [u, p] = await Promise.all([
@@ -15,15 +17,19 @@ export default function AdminRoles() {
     ])
     setUsuarios(u.data || [])
     setPermisos(Object.fromEntries((p.data || []).map(x => [x.usuario_id + ':' + x.permiso, x.concedido])))
+    setCargando(false)
   }
   useEffect(() => { cargar() }, [])
 
   const concedido = (id, p) => permisos[id + ':' + p] !== false
 
   const alternar = async (u, p) => {
+    if (ocupado) return
+    setOcupado(u.id + ':' + p)
     const nuevo = !concedido(u.id, p)
     const r = await supabase.from('permisos_usuario').upsert(
       { usuario_id: u.id, permiso: p, concedido: nuevo, actualizado_en: new Date().toISOString() }, { onConflict: 'usuario_id,permiso' })
+    setOcupado(null)
     if (r.error) return setError(r.error.message)
     setError(null)
     setPermisos(s => ({ ...s, [u.id + ':' + p]: nuevo }))
@@ -33,6 +39,7 @@ export default function AdminRoles() {
     <div className="adm-pagina">
       <h3 className="adm-h">Roles y permisos</h3>
       {error && <p className="text-sm text-red-600">{error}</p>}
+      {cargando && <p className="adm-cargando"><i className="fa fa-spinner fa-spin"></i> Cargando…</p>}
       <div className="overflow-x-auto">
         <table className="adm-tabla">
           <thead>
@@ -46,7 +53,7 @@ export default function AdminRoles() {
                 {PERMISOS.map(([k]) => (
                   <td key={k} className="text-center">
                     {u.rol === 'admin_guia' ? <span className="text-gray-400">todos</span>
-                      : <input type="checkbox" checked={concedido(u.id, k)} onChange={() => alternar(u, k)} />}
+                      : <input type="checkbox" checked={concedido(u.id, k)} disabled={!!ocupado} onChange={() => alternar(u, k)} />}
                   </td>
                 ))}
               </tr>

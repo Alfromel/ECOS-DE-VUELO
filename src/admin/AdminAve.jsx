@@ -18,12 +18,15 @@ export default function AdminAve() {
   const [src, setSrc] = useState(null)
   const [msg, setMsg] = useState(null)
   const [cols, setCols] = useState([])
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
     supabase.from('aves').select('*').order('creado_en').limit(1).maybeSingle().then(({ data }) => {
       setAve(data ? normalizar(data) : null)
       setCols(data ? Object.keys(data) : [])
       setColores(data?.colores_modelo || {})
+      setCargando(false)
     })
   }, [])
 
@@ -33,14 +36,19 @@ export default function AdminAve() {
     return () => { vivo = false; clearTimeout(t); if (url) setTimeout(() => URL.revokeObjectURL(url), 2000) }
   }, [colores])
 
+  if (cargando) return <div className="adm-pagina"><p className="adm-cargando"><i className="fa fa-spinner fa-spin"></i> Cargando…</p></div>
+
   if (!ave) return (
     <div className="adm-pagina">
       <h3 className="adm-h">Ficha técnica</h3>
       <p className="text-gray-500 mb-3">Aún no hay ficha registrada en la tabla <code>aves</code>.</p>
-      <button className="btn-rojo" onClick={async () => {
+      <button className="btn-rojo" disabled={guardando} onClick={async () => {
+        if (guardando) return
+        setGuardando(true)
         const r = await supabase.from('aves').insert({ nombre_comun: 'Paraba Frente Roja', nombre_cientifico: 'Ara rubrogenys' }).select().single()
+        setGuardando(false)
         if (r.error) setMsg({ t: 'err', m: r.error.message }); else setAve(normalizar(r.data))
-      }}>Crear ficha</button>
+      }}>{guardando ? <><i className="fa fa-spinner fa-spin"></i> Creando…</> : 'Crear ficha'}</button>
       {msg && <p className="text-sm text-red-600 mt-2">{msg.m}</p>}
     </div>
   )
@@ -50,10 +58,13 @@ export default function AdminAve() {
   const quitar = (k, i) => set(k, ave[k].filter((_, j) => j !== i))
 
   const guardar = async () => {
+    if (guardando) return
+    setGuardando(true)
     const { id, creado_en, ...resto } = ave
     void creado_en
     const payload = Object.fromEntries(Object.entries({ ...resto, colores_modelo: colores }).filter(([k]) => cols.includes(k)))
     const r = await supabase.from('aves').update(payload).eq('id', id)
+    setGuardando(false)
     const faltan = LISTAS.filter(k => !cols.includes(k))
     if (r.error) setMsg({ t: 'err', m: r.error.message })
     else if (faltan.length) setMsg({ t: 'err', m: 'Guardado parcial: faltan columnas en la tabla aves (' + faltan.join(', ') + ')' })
@@ -67,7 +78,7 @@ export default function AdminAve() {
         <div className="flex gap-2">
           <button className="btn-rojo" onClick={() => exportarFicha({ ...ave, colores_modelo: colores }, 'pdf')}>Exportar PDF</button>
           <button className="btn-sec" onClick={() => exportarFicha(ave, 'excel')}>Exportar Excel</button>
-          <button className="btn-rojo" onClick={guardar}>Guardar cambios</button>
+          <button className="btn-rojo" disabled={guardando} onClick={guardar}>{guardando ? <><i className="fa fa-spinner fa-spin"></i> Guardando…</> : 'Guardar cambios'}</button>
         </div>
       </div>
       {msg && <p className={'text-sm ' + (msg.t === 'err' ? 'text-red-600' : 'text-green-700')}>{msg.m}</p>}

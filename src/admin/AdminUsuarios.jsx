@@ -16,12 +16,20 @@ export default function AdminUsuarios() {
   const [error, setError] = useState(null)
   const [guardando, setGuardando] = useState(false)
   const [edit, setEdit] = useState(null)
+  const [conteo, setConteo] = useState({})
+  const [cargando, setCargando] = useState(true)
+  const [cambiando, setCambiando] = useState(null)
   const { perfil } = useAuth()
 
   const cargar = async () => {
     const { data } = await supabase.from('profiles').select('id, nombre_completo, email, telefono, rol, activo, creado_en')
       .order('creado_en', { ascending: false })
     setTuristas(data || [])
+    const { data: av } = await supabase.from('avistamientos').select('usuario_id')
+    const c = {}
+    ;(av || []).forEach(x => { c[x.usuario_id] = (c[x.usuario_id] || 0) + 1 })
+    setConteo(c)
+    setCargando(false)
   }
   useEffect(() => { cargar() }, [])
 
@@ -33,12 +41,13 @@ export default function AdminUsuarios() {
 
   const tabla = () => ({
     titulo: 'Usuarios', hoja: 'Usuarios',
-    columnas: ['Nombre', 'Correo', 'Teléfono', 'Rol', 'Estado', 'Registro'],
-    filas: filtrados.map(u => [u.nombre_completo || '—', u.email || '—', u.telefono || '—', ROLES[u.rol] || u.rol, u.activo === false ? 'Inactivo' : 'Activo', fecha(u.creado_en)]),
+    columnas: ['Nombre', 'Correo', 'Teléfono', 'Rol',     'Estado', 'Avistamientos', 'Registro'],
+        filas: filtrados.map(u => [u.nombre_completo || '—', u.email || '—', u.telefono || '—', ROLES[u.rol] || u.rol, u.activo === false ? 'Inactivo' : 'Activo', conteo[u.id] || 0, fecha(u.creado_en)]),
   })
 
   const crear = async e => {
     e.preventDefault()
+      if (guardando) return
     setGuardando(true); setError(null)
     const { data: nuevo, error: err } = await supabase.rpc('registrar_usuario', {
       p_nombre: form.nombre, p_email: form.email.trim(), p_password: form.password, p_codigo: null,
@@ -58,6 +67,7 @@ export default function AdminUsuarios() {
 
   const guardarEdicion = async e => {
     e.preventDefault()
+      if (guardando) return
     setGuardando(true); setError(null)
     const email = edit.email.trim().toLowerCase()
     const dup = await supabase.from('profiles').select('id').ilike('email', email).neq('id', edit.id).limit(1)
@@ -71,11 +81,15 @@ export default function AdminUsuarios() {
     cargar()
   }
 
-  const eliminar = async u => {
-    if (!window.confirm('¿Eliminar a ' + (u.nombre_completo || u.email) + '? Esta acción no se puede deshacer.')) return
-    const { error: err } = await supabase.from('profiles').delete().eq('id', u.id)
-    if (err) return window.alert('No se pudo eliminar: ' + err.message)
-    cargar()
+  const cambiarEstado = async u => {
+    if (cambiando) return
+    const activar = u.activo === false
+    if (!window.confirm((activar ? '¿Activar a ' : '¿Desactivar a ') + (u.nombre_completo || u.email) + '?')) return
+    setCambiando(u.id)
+    const { error: err } = await supabase.from('profiles').update({ activo: activar }).eq('id', u.id)
+    if (err) { setCambiando(null); return window.alert('No se pudo cambiar el estado: ' + err.message) }
+    await cargar()
+    setCambiando(null)
   }
 
   return (
@@ -95,20 +109,22 @@ export default function AdminUsuarios() {
 
       <div className="overflow-x-auto">
         <table className="adm-tabla">
-          <thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Rol</th><th>Estado</th><th>Registro</th><th>Acciones</th></tr></thead>
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Rol</th><th>Estado</th><th>Avistamientos</th><th>Registro</th><th>Acciones</th></tr></thead>
           <tbody>
             {filtrados.map(u => (
               <tr key={u.id}>
                 <td>{u.nombre_completo || '—'}</td><td>{u.email}</td><td>{u.telefono || '—'}</td>
                 <td>{ROLES[u.rol] || u.rol}</td>
-                <td>{u.activo === false ? 'Inactivo' : 'Activo'}</td><td>{fecha(u.creado_en)}</td>
+                <td>{u.activo === false ? 'Inactivo' : 'Activo'}</td><td>{conteo[u.id] || 0}</td><td>{fecha(u.creado_en)}</td>
                                 <td style={{ whiteSpace: 'nowrap' }}>
                                   <button className="btn-sec" style={{ padding: '.3rem .6rem' }} title="Editar" onClick={() => { setError(null); setEdit({ ...u, telefono: u.telefono || '', nombre_completo: u.nombre_completo || '', activo: u.activo !== false }) }}><i className="fa fa-pencil"></i></button>{' '}
-                                  {u.id !== perfil?.id && <button className="btn-rojo" style={{ padding: '.3rem .6rem' }} title="Eliminar" onClick={() => eliminar(u)}><i className="fa fa-trash"></i></button>}
+                                  {u.id !== perfil?.id && (u.activo === false
+                                    ? <button className="btn-rojo" style={{ padding: '.3rem .6rem' }}                                     title="Activar" disabled={!!cambiando} onClick={() => cambiarEstado(u)}><i className={cambiando === u.id ? 'fa fa-spinner fa-spin' : 'fa fa-toggle-off'}></i> Activar</button>
+                                                                        : <button className="btn-sec" style={{ padding: '.3rem .6rem' }} title="Desactivar" disabled={!!cambiando} onClick={() => cambiarEstado(u)}><i className={cambiando === u.id ? 'fa fa-spinner fa-spin' : 'fa fa-toggle-on'}></i> Desactivar</button>)}
                                 </td>
                               </tr>
                             ))}
-                            {!filtrados.length && <tr><td colSpan="7">Aún no hay usuarios.</td></tr>}
+                            {cargando ? <tr><td colSpan="8" className="adm-cargando"><i className="fa fa-spinner fa-spin"></i> Cargando…</td></tr> : !filtrados.length && <tr><td colSpan="8">Aún no hay usuarios.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -131,7 +147,7 @@ export default function AdminUsuarios() {
             {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
             <div className="flex gap-2 justify-end">
               <button type="button" className="btn-sec" onClick={() => setEdit(null)}>Cancelar</button>
-              <button className="btn-rojo" disabled={guardando}>{guardando ? 'Guardando…' : 'Guardar'}</button>
+              <button className="btn-rojo" disabled={guardando}>{guardando ? <><i className="fa fa-spinner fa-spin"></i> Guardando…</> : 'Guardar'}</button>
             </div>
           </form>
         </div>
@@ -152,7 +168,7 @@ export default function AdminUsuarios() {
             {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
             <div className="flex gap-2 justify-end">
               <button type="button" className="btn-sec" onClick={() => setModal(false)}>Cancelar</button>
-              <button className="btn-rojo" disabled={guardando}>{guardando ? 'Guardando…' : 'Registrar'}</button>
+              <button className="btn-rojo" disabled={guardando}>{guardando ? <><i className="fa fa-spinner fa-spin"></i> Guardando…</> : 'Registrar'}</button>
             </div>
           </form>
         </div>

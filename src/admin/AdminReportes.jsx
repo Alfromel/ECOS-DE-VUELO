@@ -14,6 +14,8 @@ export default function AdminReportes() {
   const [f, setF] = useState(vacio)
   const [abierto, setAbierto] = useState(null)
   const [error, setError] = useState(null)
+  const [cargando, setCargando] = useState(true)
+  const [guardando, setGuardando] = useState(false)
 
   const cargar = async () => {
     const [r, t, d] = await Promise.all([
@@ -22,6 +24,7 @@ export default function AdminReportes() {
       supabase.from('reportes_destinatarios').select('*'),
     ])
     setReportes(r.data || []); setTuristas(t.data || []); setDest(d.data || [])
+    setCargando(false)
   }
   useEffect(() => { cargar() }, [])
 
@@ -31,18 +34,27 @@ export default function AdminReportes() {
 
   const crear = async e => {
     e.preventDefault()
+    if (guardando) return
     if (f.destino === 'usuarios_especificos' && !f.usuarios.length) return setError('Elige al menos un usuario')
+    setGuardando(true)
     const { data, error: er } = await supabase.from('reportes')
       .insert({ titulo: f.titulo, descripcion: f.descripcion, tipo_reporte: f.tipo_reporte, destino: f.destino, creado_por: perfil.id }).select().single()
-    if (er) return setError(er.message)
+    if (er) { setGuardando(false); return setError(er.message) }
     if (f.destino === 'usuarios_especificos') {
       const r = await supabase.from('reportes_destinatarios').insert(f.usuarios.map(id => ({ reporte_id: data.id, usuario_id: id })))
-      if (r.error) return setError(r.error.message)
+      if (r.error) { setGuardando(false); cargar(); return setError(r.error.message) }
     }
-    setError(null); setF(vacio); cargar()
+    setError(null); setF(vacio); await cargar()
+    setGuardando(false)
   }
 
-  const eliminar = async id => { if (confirm('¿Eliminar reporte?')) { await supabase.from('reportes').delete().eq('id', id); cargar() } }
+  const eliminar = async id => {
+    if (guardando || !confirm('¿Eliminar reporte?')) return
+    setGuardando(true)
+    await supabase.from('reportes').delete().eq('id', id)
+    await cargar()
+    setGuardando(false)
+  }
 
   const detalle = rep => {
     const lista = dest.filter(d => d.reporte_id === rep.id)
@@ -91,10 +103,11 @@ export default function AdminReportes() {
           </div>
         )}
         {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
-        <button className="btn-rojo">Publicar reporte</button>
+        <button className="btn-rojo" disabled={guardando}>{guardando ? <><i className="fa fa-spinner fa-spin"></i> Publicando…</> : 'Publicar reporte'}</button>
       </form>
 
       <div className="space-y-2">
+        {cargando && <p className="adm-cargando"><i className="fa fa-spinner fa-spin"></i> Cargando…</p>}
         {reportes.map(r => {
           const d = detalle(r)
           return (
@@ -104,7 +117,7 @@ export default function AdminReportes() {
                   <b>{r.titulo}</b> <span className="text-xs bg-gray-100 px-2 rounded-full">{r.tipo_reporte}</span>
                   <small className="block text-gray-500">{r.destino === 'todos_turistas' ? 'Todos los turistas' : 'Usuarios específicos'} · {d.leyeron.length} leídos · {d.pendientes.length} sin leer</small>
                 </button>
-                <button onClick={() => eliminar(r.id)} className="text-primary"><i className="fa fa-trash"></i></button>
+                <button disabled={guardando} onClick={() => eliminar(r.id)} className="text-primary"><i className="fa fa-trash"></i></button>
               </div>
               {abierto === r.id && (
                 <div className="mt-2 text-sm grid grid-cols-2 gap-3">

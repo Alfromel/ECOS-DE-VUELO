@@ -7,6 +7,7 @@ import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, svgPin }
 import { coordenadasTramo, distanciaTramoKm, fmtKm, pos as pt, segmentosRuta } from '../lib/geo'
 import { eliminarFormasLocales, guardarFormaTramo, leerFormasLocales } from '../lib/formaTramos'
 import { agregarControlRotacion, opcionesRotacionAdmin } from '../lib/rotacionMapa'
+import { leerCoordenadas } from '../lib/coordenadas'
 
 const COLORES = ['#2E86AB', '#D32F2F', '#1B5E20', '#F59E0B', '#7B1FA2', '#0F766E', '#DB2777']
 
@@ -22,6 +23,8 @@ export default function AdminRutas({ datos }) {
   const [abiertoParadas, setAbiertoParadas] = useState(true)
   const [paradaPendiente, setParadaPendiente] = useState(null)
   const [guardandoParada, setGuardandoParada] = useState(false)
+  const [ocupado, setOcupado] = useState(null)
+  const [coord, setCoord] = useState('')
   const [lineaSel, setLineaSel] = useState(null)
   const [vForma, setVForma] = useState(0)
 
@@ -99,7 +102,7 @@ export default function AdminRutas({ datos }) {
       setError(null)
       setParadaPendiente({
         rutaId: s.id,
-        nombre: 'Parada ' + (lista.length + 1),
+        nombre: 'Parada ' + lista.length,
         latitud,
         longitud,
         orden,
@@ -114,7 +117,7 @@ export default function AdminRutas({ datos }) {
     dibujarRutas(capa.current, datos, { verDist: true, sinParadas: new Set(selId ? [selId] : []) })
     edit.current.clearLayers()
     ps.forEach((p, i) => {
-      const mk = L.marker(pt(p), { icon: svgPin(sel.color, i + 1), draggable: true }).addTo(edit.current)
+      const mk = L.marker(pt(p), { icon: svgPin(sel.color, i), draggable: true }).addTo(edit.current)
       mk.bindTooltip(p.nombre)
       mk.on('dragend', async () => {
         const ll = mk.getLatLng()
@@ -164,7 +167,7 @@ export default function AdminRutas({ datos }) {
       })
     }
     if (!ajustado.current && paradas.length) {
-      m.fitBounds(L.latLngBounds(paradas.map(pt)), { padding: [50, 50], animate: false })
+      if (paradas.length > 1) m.fitBounds(L.latLngBounds(paradas.map(pt)), { padding: [50, 50], animate: false })
       ajustado.current = true
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -181,11 +184,10 @@ export default function AdminRutas({ datos }) {
     const m = mapa.current
     if (!m || !selId) return
     const puntos = paradas.filter(p => p.ruta_id === selId).map(pt)
-    if (!puntos.length) return
+    if (puntos.length < 2) return
     setTimeout(() => {
       m.invalidateSize()
-      if (puntos.length === 1) m.setView(puntos[0], Math.max(m.getZoom(), 15))
-      else m.fitBounds(L.latLngBounds(puntos), { padding: [50, 50], maxZoom: 17 })
+      m.fitBounds(L.latLngBounds(puntos), { padding: [50, 50], maxZoom: 13 })
     }, 80)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selId, abiertoParadas, abiertoRutas])
@@ -193,8 +195,11 @@ export default function AdminRutas({ datos }) {
 
   const crearRuta = async e => {
     e.preventDefault()
+    if (ocupado) return
+    setOcupado('crear')
     const r = fallo(await supabase.from('rutas').insert({ nombre: nueva.nombre, color: nueva.color, creado_por: perfil.id }).select().single())
     if (!r.error) { setNueva({ nombre: '', color: COLORES[(rutas.length + 1) % COLORES.length] }); await recargar(); setSelId(r.data.id); setModo('agregar') }
+    setOcupado(null)
   }
 
   const actualizarRuta = async cambios => {
@@ -204,21 +209,33 @@ export default function AdminRutas({ datos }) {
   }
 
   const eliminarRuta = async () => {
-    if (!confirm(`¿Eliminar la ruta "${sel.nombre}" con sus paradas?`)) return
-    fallo(await supabase.from('rutas').delete().eq('id', sel.id)); setSelId(null); recargar()
+    if (ocupado || !confirm(`¿Eliminar la ruta "${sel.nombre}" con sus paradas?`)) return
+    setOcupado('eliminar')
+    fallo(await supabase.from('rutas').delete().eq('id', sel.id)); setSelId(null); await recargar()
+    setOcupado(null)
   }
 
   const actualizarParada = async (p, c) => { fallo(await supabase.from('paradas').update({ ...c, actualizado_en: new Date().toISOString() }).eq('id', p.id)); recargar() }
-  const eliminarParada = async p => { if (confirm(`¿Eliminar "${p.nombre}"?`)) { fallo(await supabase.from('paradas').delete().eq('id', p.id)); recargar() } }
+  const eliminarParada = async p => {
+    if (ocupado || !confirm(`¿Eliminar "${p.nombre}"?`)) return
+    setOcupado('p' + p.id)
+    fallo(await supabase.from('paradas').delete().eq('id', p.id)); await recargar()
+    setOcupado(null)
+  }
   const mover = async (i, d) => {
     const a = ps[i], b = ps[i + d]
-    if (!b) return
+    if (!b || ocupado) return
+    setOcupado('mover')
     await Promise.all([supabase.from('paradas').update({ orden: b.orden }).eq('id', a.id), supabase.from('paradas').update({ orden: a.orden }).eq('id', b.id)])
-    recargar()
+    await recargar()
+    setOcupado(null)
   }
   const quitarEnlace = async id => {
+    if (ocupado) return
+    setOcupado('enlace')
     fallo(await supabase.from('rutas_enlaces').delete().eq('id', id))
     await recargar()
+    setOcupado(null)
   }
 
   const segSel = segs.find(([a, b]) => a.id + ':' + b.id === lineaSel)
@@ -270,7 +287,7 @@ export default function AdminRutas({ datos }) {
             <input className="campo" placeholder="Nombre de la ruta" value={nueva.nombre} onChange={e => setNueva({ ...nueva, nombre: e.target.value })} required />
             <div className="flex items-center gap-2 mb-2">
               <input type="color" value={nueva.color} onChange={e => setNueva({ ...nueva, color: e.target.value })} aria-label="Color de la ruta" />
-              <button className="btn-rojo flex-1">Crear ruta</button>
+              <button className="btn-rojo flex-1" disabled={!!ocupado}>{ocupado === 'crear' ? <><i className="fa fa-spinner fa-spin"></i> Creando…</> : 'Crear ruta'}</button>
             </div>
           </form>
           <div className="adm-rutas-lista">
@@ -299,7 +316,7 @@ export default function AdminRutas({ datos }) {
             <div className="flex gap-2 items-center mb-2">
               <input className="campo mb-0 flex-1" defaultValue={sel.nombre} key={sel.id + 'n'} onBlur={e => e.target.value !== sel.nombre && actualizarRuta({ nombre: e.target.value })} />
               <input type="color" value={sel.color} onChange={e => actualizarRuta({ color: e.target.value })} title="Color de la ruta y sus paradas" />
-              <button className="btn-sec" onClick={eliminarRuta} title="Eliminar ruta"><i className="fa fa-trash"></i></button>
+              <button className="btn-sec" disabled={!!ocupado} onClick={eliminarRuta} title="Eliminar ruta"><i className={ocupado === 'eliminar' ? 'fa fa-spinner fa-spin' : 'fa fa-trash'}></i></button>
             </div>
             <div className="flex gap-1 mb-2 text-xs">
               {[['ver', 'Ver'], ['agregar', 'Agregar'], ['deformar', 'Deformar']].map(([k, t]) => (
@@ -307,11 +324,27 @@ export default function AdminRutas({ datos }) {
               ))}
             </div>
             <p className="text-xs text-gray-500 mb-2">
-              {modo === 'agregar' && 'Toca un punto del mapa para decidir si deseas agregar una parada.'}
+              {modo === 'agregar' && 'Toca un punto del mapa o escribe las coordenadas para agregar una parada.'}
               {modo === 'enlazar' && (origen ? `Origen: ${origen.nombre}. Elige la parada destino.` : 'Elige una parada de origen y luego otra de destino (ej. C → A).')}
               {modo === 'deformar' && 'Modo deformar: dobla las líneas con tus dedos.'}
               {modo === 'ver' && 'Arrastra los pines para mover paradas, o edita sus coordenadas.'}
             </p>
+            {modo === 'agregar' && (
+              <form className="flex gap-2 items-end mb-2" onSubmit={e => {
+                e.preventDefault()
+                const c = mapa.current.getCenter()
+                const ref = ps.length ? { lat: ps[ps.length - 1].latitud, lng: ps[ps.length - 1].longitud } : { lat: c.lat, lng: c.lng }
+                const r = leerCoordenadas(coord, ref)
+                if (!r) return setError('Coordenadas no válidas. Usa "lat, lng" o un código como V3VR+3QX')
+                setError(null)
+                setParadaPendiente({ rutaId: sel.id, nombre: 'Parada ' + ps.length, latitud: r.lat, longitud: r.lng, orden: ps.length ? Math.max(...ps.map(p => p.orden)) + 1 : 1, color: sel.color })
+                setCoord('')
+              }}>
+                <label className="flex-1"><small>Coordenadas o código Plus</small>
+                  <input className="campo mb-0" placeholder="-18.106872, -64.916535  ó  V3VR+3QX" value={coord} onChange={e => setCoord(e.target.value)} required /></label>
+                <button className="btn-rojo">Agregar</button>
+              </form>
+            )}
             <p className="text-xs mb-2">{ps.length} paradas · distancia total {fmtKm(total)}</p>
             {modo === 'deformar' && (
               <div className="adm-deformar">
@@ -330,7 +363,7 @@ export default function AdminRutas({ datos }) {
             )}
             {ps.map((p, i) => (
               <div key={p.id} className="adm-parada">
-                <b style={{ color: sel.color }}>{i + 1}</b>
+                <b style={{ color: sel.color }}>{i}</b>
                 <div className="flex-1">
                   <input className="campo mb-1" defaultValue={p.nombre} key={p.id + p.nombre} onBlur={e => e.target.value !== p.nombre && actualizarParada(p, { nombre: e.target.value })} />
                   <div className="adm-coordenadas">
@@ -344,9 +377,9 @@ export default function AdminRutas({ datos }) {
                   <input className="campo mt-1 mb-0" placeholder="Descripción" defaultValue={p.descripcion || ''} key={p.id + 'd' + p.descripcion} onBlur={e => e.target.value !== (p.descripcion || '') && actualizarParada(p, { descripcion: e.target.value })} />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <button onClick={() => mover(i, -1)} disabled={i === 0}>▲</button>
-                  <button onClick={() => mover(i, 1)} disabled={i === ps.length - 1}>▼</button>
-                  <button onClick={() => eliminarParada(p)} className="text-primary"><i className="fa fa-trash"></i></button>
+                  <button onClick={() => mover(i, -1)} disabled={i === 0 || !!ocupado}>▲</button>
+                  <button onClick={() => mover(i, 1)} disabled={i === ps.length - 1 || !!ocupado}>▼</button>
+                  <button onClick={() => eliminarParada(p)} disabled={!!ocupado} className="text-primary"><i className={ocupado === 'p' + p.id ? 'fa fa-spinner fa-spin' : 'fa fa-trash'}></i></button>
                 </div>
               </div>
             ))}
@@ -381,7 +414,7 @@ export default function AdminRutas({ datos }) {
               <div className="adm-parada-dialogo-acciones">
                 <button type="button" className="btn-sec" disabled={guardandoParada} onClick={() => setParadaPendiente(null)}>No, cancelar</button>
                 <button type="button" className="btn-rojo" disabled={guardandoParada} onClick={confirmarParada}>
-                  {guardandoParada ? 'Agregando…' : 'Sí, agregar'}
+                  {guardandoParada ? <><i className="fa fa-spinner fa-spin"></i> Agregando…</> : 'Sí, agregar'}
                 </button>
               </div>
             </section>

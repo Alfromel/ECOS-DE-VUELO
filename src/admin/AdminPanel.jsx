@@ -91,7 +91,7 @@ export default function AdminPanel() {
           </div>
         </div>
         <section className="adm-contenido">
-          {datos.cargando ? <p className="p-6 text-gray-500">Cargando…</p> : vista}
+          {datos.cargando ? <p className="adm-cargando"><i className="fa fa-spinner fa-spin"></i> Cargando…</p> : vista}
         </section>
       </main>
     </div>
