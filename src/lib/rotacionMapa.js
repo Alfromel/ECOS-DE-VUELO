@@ -6,6 +6,7 @@ export const opcionesRotacionAdmin = {
   rotate: true,
   touchRotate: true,
   dragRotate: false,
+  zoomSnap: 0.25,
 }
 
 export function agregarControlRotacion(mapa) {

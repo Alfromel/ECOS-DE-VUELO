@@ -40,25 +40,30 @@ export const capasBase = () => ({
   ]),
   Satélite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, crossOrigin: 'anonymous', attribution: 'Tiles &copy; Esri' }),
   Calles: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: 'anonymous', attribution: '&copy; OpenStreetMap' }),
+  Oscuro: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, crossOrigin: 'anonymous', className: 'tiles-oscuros', attribution: '&copy; OpenStreetMap' }),
 })
 
-// Un solo botón (arriba a la derecha) que alterna entre mapa normal y satélite
+// Un solo botón (arriba a la derecha) que rota entre normal (claro), satélite y oscuro
+const ORDEN_MODOS = ['Calles', 'Híbrido', 'Oscuro']
+const ICONOS_MODO = { Calles: 'fa-map-o', Híbrido: 'fa-globe', Oscuro: 'fa-moon-o' }
+const NOMBRES_MODO = { Calles: 'mapa normal', Híbrido: 'satélite', Oscuro: 'mapa oscuro' }
 export function agregarSelectorCapa(m, bases) {
   const Ctl = L.Control.extend({
     onAdd() {
       const div = L.DomUtil.create('div', 'mapa-modo')
       const btn = L.DomUtil.create('button', '', div)
       btn.type = 'button'
-      let actual = 'Híbrido'
+      let actual = ORDEN_MODOS.find(k => m.hasLayer(bases[k])) || 'Calles'
+      const siguiente = () => ORDEN_MODOS[(ORDEN_MODOS.indexOf(actual) + 1) % ORDEN_MODOS.length]
       const pintar = () => {
-        btn.innerHTML = actual === 'Híbrido' ? '<i class="fa fa-map-o" aria-hidden="true"></i>' : '<i class="fa fa-globe" aria-hidden="true"></i>'
-        btn.title = actual === 'Híbrido' ? 'Cambiar a mapa de calles' : 'Cambiar a satélite'
+        const sig = siguiente()
+        btn.innerHTML = `<i class="fa ${ICONOS_MODO[sig]}" aria-hidden="true"></i>`
+        btn.title = 'Cambiar a ' + NOMBRES_MODO[sig]
         btn.setAttribute('aria-label', btn.title)
-        btn.setAttribute('aria-pressed', String(actual !== 'Híbrido'))
       }
       L.DomEvent.disableClickPropagation(div)
       btn.onclick = () => {
-        const sig = actual === 'Híbrido' ? 'Calles' : 'Híbrido'
+        const sig = siguiente()
         m.removeLayer(bases[actual]); bases[sig].addTo(m); bases[sig].bringToBack?.()
         actual = sig; pintar()
       }
@@ -156,7 +161,7 @@ export default function MapaRutas({ activa, pos, datos }) {
   useEffect(() => {
     const m = L.map(contenedor.current, { zoomControl: false, preferCanvas: true }).setView(CENTRO, 7)
     const bases = capasBase()
-    bases.Híbrido.addTo(m)
+    bases.Calles.addTo(m)
     agregarBuscador(m)
     agregarSelectorCapa(m, bases)
     capa.current = L.layerGroup().addTo(m)

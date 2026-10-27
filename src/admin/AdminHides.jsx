@@ -24,8 +24,11 @@ export default function AdminHides({ datos }) {
   const borrador = useRef(null)
   const paradasRef = useRef(paradas)
   const ajustado = useRef(false)
+  const fRef = useRef(null)
+  const [pendiente, setPendiente] = useState(null)
 
   useEffect(() => { paradasRef.current = paradas }, [paradas])
+  useEffect(() => { fRef.current = f }, [f])
 
   const sugerir = (lat, lon, aplicar) => {
     const c = paradaCercana([lat, lon], paradasRef.current)
@@ -40,22 +43,30 @@ export default function AdminHides({ datos }) {
     sugerir(lat, lon, true)
   }
 
+  // Con un hide existente en edición se mueve el pin directo; para uno nuevo se pide confirmación
+  const pedir = (lat, lon) => {
+    lat = +(+lat).toFixed(6); lon = +(+lon).toFixed(6)
+    if (fRef.current?.id) colocar(lat, lon)
+    else setPendiente({ lat, lon })
+  }
+
   const editar = h => {
     setF({ id: h.id, nombre: h.nombre, descripcion: h.descripcion || '', latitud: h.latitud, longitud: h.longitud, ruta_id: h.ruta_id || '', parada_id: h.parada_id || '' })
     sugerir(h.latitud, h.longitud, false)
-    mapa.current?.panTo(pt(h))
+    const m = mapa.current
+    if (m) m.flyTo(pt(h), Math.max(m.getZoom(), 16.75), { duration: 1 })
   }
 
   useEffect(() => {
     const m = L.map(el.current, { zoomControl: false, ...opcionesRotacionAdmin }).setView(CENTRO, 7)
     const bases = capasBase()
-    bases.Híbrido.addTo(m)
+    bases.Calles.addTo(m)
     agregarBuscador(m)
     agregarSelectorCapa(m, bases)
     agregarControlRotacion(m)
     capa.current = L.layerGroup().addTo(m)
     mapa.current = m
-    m.on('click', e => colocar(e.latlng.lat, e.latlng.lng))
+    m.on('click', e => pedir(e.latlng.lat, e.latlng.lng))
     setTimeout(() => m.invalidateSize(), 50)
     return () => { m.remove(); mapa.current = null }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,9 +120,8 @@ export default function AdminHides({ datos }) {
     const par = leerCoordenadas(coordTexto, ref)
     if (!par) return setError('Coordenadas no válidas. Usa "lat, lng" o un código como V3VR+3QX')
     setError(null)
-    setF({ ...f, latitud: par.lat, longitud: par.lng })
-    sugerir(par.lat, par.lng, true)
     setCoordTexto('')
+    pedir(par.lat, par.lng)
   }
 
   const guardar = async e => {
@@ -197,7 +207,25 @@ export default function AdminHides({ datos }) {
           </form>
         )}
       </div>
-      <div className="adm-mapa" ref={el}></div>
+      <div className="adm-mapa-wrap">
+        <div className="adm-mapa" ref={el}></div>
+        {pendiente && (
+          <div className="adm-parada-dialogo-fondo" onClick={() => setPendiente(null)}>
+            <section className="adm-parada-dialogo" role="dialog" aria-modal="true" aria-labelledby="adm-hide-dialogo-titulo" onClick={e => e.stopPropagation()}>
+              <div className="adm-parada-dialogo-icono"><i className="fa fa-binoculars" aria-hidden="true"></i></div>
+              <div className="adm-parada-dialogo-contenido">
+                <h3 id="adm-hide-dialogo-titulo">¿Deseas agregar un hide aquí?</h3>
+                <p>Se abrirá el formulario con esta ubicación:</p>
+                <small>{pendiente.lat}, {pendiente.lon}</small>
+              </div>
+              <div className="adm-parada-dialogo-acciones">
+                <button type="button" className="btn-sec" onClick={() => setPendiente(null)}>No, cancelar</button>
+                <button type="button" className="btn-rojo" onClick={() => { colocar(pendiente.lat, pendiente.lon); setPendiente(null) }}>Sí, agregar</button>
+              </div>
+            </section>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

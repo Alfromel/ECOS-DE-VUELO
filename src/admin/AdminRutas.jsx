@@ -86,7 +86,7 @@ export default function AdminRutas({ datos }) {
   useEffect(() => {
     const m = L.map(el.current, { zoomControl: false, ...opcionesRotacionAdmin }).setView(CENTRO, 7)
     const bases = capasBase()
-    bases.Híbrido.addTo(m)
+    bases.Calles.addTo(m)
     agregarBuscador(m)
     agregarSelectorCapa(m, bases)
     agregarControlRotacion(m)
@@ -184,10 +184,11 @@ export default function AdminRutas({ datos }) {
     const m = mapa.current
     if (!m || !selId) return
     const puntos = paradas.filter(p => p.ruta_id === selId).map(pt)
-    if (puntos.length < 2) return
+    if (!puntos.length) return
     setTimeout(() => {
       m.invalidateSize()
-      m.fitBounds(L.latLngBounds(puntos), { padding: [50, 50], maxZoom: 13 })
+      if (puntos.length === 1) m.flyTo(puntos[0], Math.max(m.getZoom(), 16.75), { duration: 1 })
+      else m.flyToBounds(L.latLngBounds(puntos), { padding: [40, 40], maxZoom: 17.75, duration: 1 })
     }, 80)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selId, abiertoParadas, abiertoRutas])

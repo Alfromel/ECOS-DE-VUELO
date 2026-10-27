@@ -560,3 +560,5 @@
 
 .adm-cargando{display:flex;align-items:center;justify-content:center;gap:.6rem;padding:2rem;color:var(--mu);font-size:.95rem}
 button:disabled{opacity:.6;cursor:not-allowed}
+
+.tiles-oscuros{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.95) saturate(.7)}
