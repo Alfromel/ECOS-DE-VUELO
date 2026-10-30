@@ -37,7 +37,7 @@ const SECCIONES = [
   ]],
   ['nidos', 'fa-leaf', 'Nidos', [
     'Funciona igual que Hide, pero para registrar nidos: nombre, descripción, ubicación en el mapa, ruta/parada y estado activo.',
-    'Los nidos activos se muestran en la sección Nidos para turistas y usuarios, con su propio diseño.',
+    'Los nidos activos se administran aquí. Sus ubicaciones aparecen como marcadores en el mapa de turistas, pero no se muestra la sección Nidos; los invitados no los ven.',
     'Requiere haber creado la tabla "nidos" en Supabase con el archivo nidos_videos.sql.',
   ]],
   ['videos', 'fa-youtube-play', 'Videos', [

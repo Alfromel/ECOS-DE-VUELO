@@ -175,14 +175,14 @@ const Ico = ({ n }) => (
 export default function MapaRutas({ activa, pos, datos }) {
   const { rol, puede } = useAuth()
   const { rutas, paradas, enlaces, hides } = datos
-  const nidos = datos.nidos || []
+  const nidos = datos.nidos
   const registrado = rol !== 'invitado'
   const puedeAvistar = rol === 'turista' && puede('crear_avistamiento') !== false
   const [hideAvistar, setHideAvistar] = useState(null)
   const [puntoAvistar, setPuntoAvistar] = useState(null)
   const avistarRef = useRef(false)
   useEffect(() => { avistarRef.current = puedeAvistar }, [puedeAvistar])
-  const [verNidos, setVerNidos] = useState(false)
+  const mostrarNidosEnMapa = registrado
   const contenedor = useRef(null)
   const mapa = useRef(null)
   const capa = useRef(null)
@@ -210,7 +210,6 @@ export default function MapaRutas({ activa, pos, datos }) {
   }
 
   const irANido = n => {
-    setVerNidos(true)
     setPanel(null)
     mapa.current?.flyTo(pt(n), Math.max(mapa.current.getZoom(), 17), { duration: 1.2 })
   }
@@ -256,15 +255,15 @@ export default function MapaRutas({ activa, pos, datos }) {
           ? `<button type="button" class="hide-popup-btn" data-avistar="${esc(h.id)}"><i class="fa fa-binoculars"></i> Hacer avistamiento</button>`
           : ''}</div>`))
     }
-    if (registrado && verNidos) {
+    if (mostrarNidosEnMapa) {
       nidos.forEach(n => L.marker(pt(n), { icon: pinNido }).addTo(capa.current)
         .bindPopup(`<div class="hide-popup"><b>${esc(n.nombre)}</b>${n.descripcion ? '<small>' + esc(n.descripcion) + '</small>' : ''}</div>`))
     }
-    if (!encuadrado.current && (paradas.length || hides.length)) {
-      const puntos = [...paradas.map(pt), ...(registrado ? hides.map(pt) : [])]
+    if (!datos.cargando && !encuadrado.current && (paradas.length || hides.length || (mostrarNidosEnMapa && nidos.length))) {
+      const puntos = [...paradas.map(pt), ...(registrado ? hides.map(pt) : []), ...(mostrarNidosEnMapa ? nidos.map(pt) : [])]
       if (puntos.length) { m.fitBounds(L.latLngBounds(puntos), { padding: [60, 60], animate: false }); encuadrado.current = true }
     }
-  }, [datos, ocultas, verHides, verNidos, verParadas, verDist, registrado, hides, nidos, paradas, puedeAvistar])
+  }, [datos, ocultas, verHides, verParadas, verDist, registrado, mostrarNidosEnMapa, hides, nidos, paradas, puedeAvistar])
 
   useEffect(() => {
     const cont = mapa.current?.getContainer()
@@ -330,13 +329,13 @@ export default function MapaRutas({ activa, pos, datos }) {
           <Ico n="ruta" />
         </button>
         {registrado && (
-          <button type="button" className={'mapa-fab' + (panel === 'hides' ? ' on' : '')} onClick={() => alternarPanel('hides')} aria-label="Hides" title="Hides">
+          <button type="button" className={'mapa-fab mapa-fab-hide' + (panel === 'hides' ? ' on' : '')} onClick={() => alternarPanel('hides')} aria-label="Hides" title="Hides">
             <Ico n="hide" />
           </button>
         )}
         {registrado && (
           <button type="button" className={'mapa-fab' + (panel === 'nidos' ? ' on' : '')} onClick={() => alternarPanel('nidos')} aria-label="Nidos" title="Nidos">
-            <Ico n="mas" />
+            <NidoIco size={19} />
           </button>
         )}
         <button type="button" className={'mapa-fab' + (panel === 'capas' ? ' on' : '')} onClick={() => alternarPanel('capas')} aria-label="Capas y leyenda" title="Capas y leyenda">
@@ -375,13 +374,12 @@ export default function MapaRutas({ activa, pos, datos }) {
       {panel === 'nidos' && registrado && (
         <div className="mapa-panel abierto">
           <div className="mapa-panel-cab"><b>Nidos</b><button type="button" className="mapa-x" onClick={() => setPanel(null)} aria-label="Cerrar"><Ico n="x" /></button></div>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={verNidos} onChange={e => setVerNidos(e.target.checked)} /> Mostrar nidos en el mapa</label>
           {!nidos.length && <p className="text-xs text-gray-500">Aún no hay Nidos registrados.</p>}
           {nidos.map(n => (
             <div key={n.id} className="mapa-hide-fila">
               <span className="mapa-hide-ico"><NidoIco size={20} /></span>
               <span className="flex-1 min-w-0"><b className="block truncate">{n.nombre}</b>{n.descripcion && <small className="block truncate text-gray-500">{n.descripcion}</small>}</span>
-              <button type="button" className="mapa-ico-btn" onClick={() => irANido(n)} aria-label={'Ir a ' + n.nombre} title="Ir al nido"><Ico n="ir" /></button>
+              <button type="button" className="mapa-ico-btn" onClick={() => irANido(n)} aria-label={'Ir al nido ' + n.nombre} title="Ir al nido"><Ico n="ir" /></button>
             </div>
           ))}
         </div>

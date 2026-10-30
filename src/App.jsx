@@ -12,7 +12,6 @@ import MapaRutas from './components/MapaRutas'
 import ClimaCard from './components/ClimaCard'
 import Recomendaciones from './components/Recomendaciones'
 import HideCard from './components/HideCard'
-import NidosCard from './components/NidosCard'
 import Reportes from './components/Reportes'
 import FichaAve from './components/FichaAve'
 import TabBar from './components/TabBar'
@@ -20,10 +19,11 @@ import AuthModal from './components/AuthModal'
 import Bloqueado from './components/Bloqueado'
 
 export default function App() {
-  const { vista } = useVista()
+  const { vista: rutaVista } = useVista()
   const { pos, posClima } = useUbicacion()
   const { clima, lugar } = useClima(posClima)
   const { rol, puede } = useAuth()
+  const vista = rutaVista === 'nidos' ? 'inicio' : rutaVista
   const datos = useMapaDatos()
   const [login, setLogin] = useState(false)
   useEfectosPagina()
@@ -32,6 +32,10 @@ export default function App() {
 
   // Los datos de Hide dependen de la sesión: recargar al cambiar de rol
   useEffect(() => { datos.recargar() }, [rol]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    document.body.dataset.vista = vista
+  }, [vista])
 
   useEffect(() => {
     const fijar = () => {
@@ -50,7 +54,7 @@ export default function App() {
   }, [vista])
 
   const grid1 = vista === 'mapa' || vista === 'clima'
-  const grid2 = ['recomendaciones', 'hide', 'nidos', 'reportes', 'ave'].includes(vista)
+  const grid2 = ['recomendaciones', 'hide', 'reportes', 'ave'].includes(vista)
   const oculto = visible => (visible ? '' : ' vista-oculta')
   const abrirLogin = () => setLogin(true)
 
@@ -69,7 +73,6 @@ export default function App() {
         <div className={'grid grid-cols-1 md:grid-cols-3 gap-6' + oculto(grid2)}>
           <Recomendaciones activa={vista === 'recomendaciones'} />
           {registrado ? <HideCard activa={vista === 'hide'} datos={datos} /> : <Bloqueado activa={vista === 'hide'} titulo="Hide" abrirLogin={abrirLogin} />}
-          <NidosCard activa={vista === 'nidos'} datos={datos} />
           {registrado && puede('ver_reportes') !== false ? <Reportes activa={vista === 'reportes'} /> : <Bloqueado activa={vista === 'reportes'} titulo="Reportes" abrirLogin={abrirLogin} />}
           <FichaAve activa={vista === 'ave'} />
         </div>

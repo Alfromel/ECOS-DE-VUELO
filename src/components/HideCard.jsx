@@ -1,9 +1,6 @@
-﻿import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
-import AvistamientoModal from './AvistamientoModal'
-
-const ETQ = { pendiente: ['bg-yellow-100 text-yellow-800', 'Pendiente de revisión'], aprobado: ['bg-green-100 text-green-800', 'Aprobado'], rechazado: ['bg-red-100 text-red-700', 'Rechazado'] }
 
 // Observatorio de madera: techo, listones, ventana al bosque, puertas que se abren y ventanitas
 function CasaHide({ num }) {
@@ -22,41 +19,35 @@ function CasaHide({ num }) {
 }
 
 export default function HideCard({ activa, datos }) {
-  const { perfil, rol, puede } = useAuth()
+  const { perfil, rol } = useAuth()
   const [avist, setAvist] = useState([])
-  const [modal, setModal] = useState(false)
-  const [hideElegido, setHideElegido] = useState('')
-  const puedeAvistar = rol === 'turista' && puede('crear_avistamiento') !== false
 
   const [autores, setAutores] = useState({})
   const cargar = useCallback(async () => {
-    if (rol !== 'turista') return
-    const { data } = await supabase.from('avistamientos').select('*').order('creado_en', { ascending: false }).limit(60)
+    if (rol !== 'turista' || !perfil?.id) return
+    const { data } = await supabase.from('avistamientos').select('*')
+      .eq('estado', 'aprobado').neq('usuario_id', perfil.id)
+      .order('creado_en', { ascending: false }).limit(60)
     setAvist(data || [])
     const ids = [...new Set((data || []).map(a => a.usuario_id))]
     if (ids.length) {
       const { data: perfiles } = await supabase.from('profiles').select('id, nombre_completo').in('id', ids)
       setAutores(Object.fromEntries((perfiles || []).map(p => [p.id, p.nombre_completo])))
     }
-  }, [rol])
-  useEffect(() => { cargar() }, [cargar])
+  }, [rol, perfil])
 
   const hides = (datos?.hides || []).map(h => ({ id: h.id, nombre: h.nombre, dms: h.descripcion, pos: [h.latitud, h.longitud] }))
-  const avistar = id => { setHideElegido(id); setModal(true) }
   const nombreHide = id => datos?.hides?.find(h => h.id === id)?.nombre
   const nombreRuta = id => datos?.rutas?.find(r => r.id === id)?.nombre
   const [abierto, setAbierto] = useState(null)
-  const visibles = avist.filter(a => a.estado === 'aprobado' || a.usuario_id === perfil?.id)
+  const visibles = avist.filter(a => a.estado === 'aprobado' && a.usuario_id !== perfil?.id)
   const deHide = id => visibles.filter(a => a.hide_id === id)
   const hideAbierto = hides.find(h => h.id === abierto)
-  const autorDe = a => (a.usuario_id === perfil?.id ? (perfil?.nombre_completo || 'Tú') + ' (tú)' : autores[a.usuario_id] || 'Turista')
+  const autorDe = a => autores[a.usuario_id] || 'Turista'
 
-  const tarjeta = (a, propio) => (
+  const tarjeta = a => (
     <div className="border rounded-lg p-3 text-sm" key={a.id}>
-      <div className="flex justify-between gap-2">
-        <b>{a.especie}</b>
-        {propio && <span className={'text-xs px-2 py-0.5 rounded-full ' + ETQ[a.estado][0]}>{ETQ[a.estado][1]}</span>}
-      </div>
+      <b>{a.especie}</b>
       <small className="text-primary block"><i className="fa fa-user"></i> {autorDe(a)}</small>
       <small className="text-gray-500 block">
         {[nombreHide(a.hide_id), nombreRuta(a.ruta_id)].filter(Boolean).join(' · ') || 'Sin ubicación'} · {new Date(a.creado_en).toLocaleDateString()}
@@ -77,7 +68,7 @@ export default function HideCard({ activa, datos }) {
         {hides.map((h, i) => {
           const lista = deHide(h.id)
           return (
-            <button type="button" className="obs-cuadro" key={h.id} onClick={() => setAbierto(h.id)}>
+            <button type="button" className="obs-cuadro" key={h.id} onClick={() => { setAbierto(h.id); cargar() }}>
               <CasaHide num={i + 1} />
               <strong>{h.nombre}</strong>
               <small>{h.dms}</small>
@@ -95,15 +86,12 @@ export default function HideCard({ activa, datos }) {
               <span className="obs-detalle"><CasaHide /></span>
               <div><h3 className="font-bold text-lg">{hideAbierto.nombre}</h3><small className="text-gray-500">{hideAbierto.dms}</small></div>
             </div>
-            <div className="hide-acciones">
-              {puedeAvistar && <button type="button" onClick={() => { setAbierto(null); avistar(hideAbierto.id) }}><i className="fa fa-plus"></i> Hacer avistamiento</button>}
-            </div>
             {rol === 'turista' && (
               <>
                 <h4 className="font-bold mt-4 mb-2">Avistamientos en este Hide</h4>
                 <div className="space-y-2">
                   {deHide(hideAbierto.id).length
-                    ? deHide(hideAbierto.id).map(a => tarjeta(a, a.usuario_id === perfil?.id))
+                    ? deHide(hideAbierto.id).map(tarjeta)
                     : <p className="text-sm text-gray-400">Aún no hay avistamientos aprobados aquí.</p>}
                 </div>
               </>
@@ -111,10 +99,7 @@ export default function HideCard({ activa, datos }) {
           </div>
         </div>
       )}
-      {modal && <AvistamientoModal datos={datos} hideInicial={hideElegido} onCerrar={() => setModal(false)} onCreado={() => { setModal(false); cargar() }} />}
     </div>
   )
 }
-
-
 

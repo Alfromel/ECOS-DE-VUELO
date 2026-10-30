@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 
 const ENLACES = [
   ['#', 'Inicio'], ['#mapa', 'Mapa'], ['#ficha', 'Ficha técnica'], ['#clima', 'Clima'],
-  ['#hide', 'Hide'], ['#nidos', 'Nidos'], ['#reportes', 'Reportes'], ['#recomendaciones', 'Recomendaciones'], ['#nosotros', 'Nosotros'],
+  ['#hide', 'Hide'], ['#reportes', 'Reportes'], ['#recomendaciones', 'Recomendaciones'], ['#nosotros', 'Nosotros'],
 ]
 
 const SOLO_REGISTRADOS = ['#hide', '#reportes']

@@ -10,7 +10,7 @@ export const PASOS = [
   { mod: 'usuarios', sel: nav('Usuarios'), pos: 'right', titulo: 'Usuarios', texto: 'Lista de personas registradas. Cambia roles y edita cuentas. El ojo en la columna de avistamientos abre los avistamientos de ese usuario.' },
   { mod: 'rutas', sel: nav('Rutas y paradas'), pos: 'right', titulo: 'Rutas y paradas', texto: 'Dibuja rutas haciendo clic en el mapa y agrega paradas con su descripción. Selecciona una ruta de la lista para editarla.' },
   { mod: 'hides', sel: nav('Hide'), pos: 'right', titulo: 'Hide', texto: 'Casetas de observación: nombre, descripción, ubicación en el mapa y si están activas para el público.' },
-  { mod: 'nidos', sel: nav('Nidos'), pos: 'right', titulo: 'Nidos', texto: 'Funciona igual que Hide pero para nidos. Los activos se ven en la sección Nidos del sitio.' },
+  { mod: 'nidos', sel: nav('Nidos'), pos: 'right', titulo: 'Nidos', texto: 'Funciona igual que Hide pero para administrar nidos. Sus ubicaciones aparecen en el mapa de turistas, sin mostrar la sección Nidos.' },
   { mod: 'videos', sel: nav('Videos'), pos: 'right', titulo: 'Videos', texto: 'Pega el enlace de YouTube, mira la vista previa y guarda. El video aparece en Inicio. Puedes ocultarlo, reordenarlo o borrarlo.' },
   { mod: 'avistamientos', sel: nav('Avistamientos'), pos: 'right', titulo: 'Avistamientos', texto: 'Aquí llegan los reportes de los usuarios. El número rojo indica cuántos esperan revisión.' },
   { mod: 'avistamientos', sel: '.adm-contenido .adm-tab', pos: 'bottom', titulo: 'Filtro por estado', texto: 'Filtra por Todos, Pendiente, Aprobado o Rechazado. Abre cada tarjeta para aprobar, rechazar o comentar.' },

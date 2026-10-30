@@ -227,6 +227,8 @@
 /* Panel plegable del mapa (botón flotante) */
 .mapa-fabs { position: absolute; left: .7rem; bottom: calc(var(--tab-total, 0px) + 1rem); z-index: 600; display: flex; flex-direction: column; gap: .4rem; }
 .mapa-fab { width: 2.4rem; height: 2.4rem; min-height: 0 !important; background: rgba(255,255,255,.96); color: #B71C1C; border: 1px solid rgba(211,47,47,.35); border-radius: 12px !important; box-shadow: 0 4px 12px rgba(15,23,42,.3); display: grid; place-items: center; padding: 0; transition: background .2s, color .2s, transform .15s; }
+.mapa-fab-hide { color: #79502f; border-color: rgba(121,80,47,.4); }
+.mapa-fab-hide.on { background: linear-gradient(135deg, #9a6a43, #684323); color: #fff; border-color: transparent; }
 .mapa-fab svg { width: 19px; height: 19px; }
 .mapa-fab.on { background: linear-gradient(135deg, #E53935, #B71C1C); color: #fff; border-color: transparent; }
 .mapa-hide-fila { display: flex; align-items: center; gap: .6rem; padding: .5rem .6rem; border-radius: 14px; background: #f8fafc; border: 1px solid #e2e8f0; }

@@ -6,8 +6,7 @@ const TABS = [
   ['ave', '#ficha', 'fa-info-circle', 'Ficha'],
   ['reportes', '#reportes', 'fa-file-text-o', 'Reportes'],
   ['hide', '#hide', 'fa-eye', 'Hide'],
-    ['nidos', '#nidos', 'fa-leaf', 'Nidos'],
-  ]
+]
 
 export default function TabBar({ vista }) {
   const { rol, noLeidos } = useAuth()
