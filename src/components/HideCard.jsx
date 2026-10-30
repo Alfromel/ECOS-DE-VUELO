@@ -5,6 +5,22 @@ import AvistamientoModal from './AvistamientoModal'
 
 const ETQ = { pendiente: ['bg-yellow-100 text-yellow-800', 'Pendiente de revisión'], aprobado: ['bg-green-100 text-green-800', 'Aprobado'], rechazado: ['bg-red-100 text-red-700', 'Rechazado'] }
 
+// Observatorio de madera: techo, listones, ventana al bosque, puertas que se abren y ventanitas
+function CasaHide({ num }) {
+  return (
+    <span className="obs-casa" aria-hidden="true">
+      <span className="obs-techo"></span>
+      <span className="obs-cuerpo">
+        <span className="obs-ventana"></span>
+        <span className="obs-puerta izq"></span>
+        <span className="obs-puerta der"></span>
+        <span className="obs-vent-peq"><i></i><i></i><i></i></span>
+      </span>
+      {num !== undefined && <b className="obs-num">{num}</b>}
+    </span>
+  )
+}
+
 export default function HideCard({ activa, datos }) {
   const { perfil, rol, puede } = useAuth()
   const [avist, setAvist] = useState([])
@@ -61,8 +77,8 @@ export default function HideCard({ activa, datos }) {
         {hides.map((h, i) => {
           const lista = deHide(h.id)
           return (
-            <button type="button" className="hide-cuadro" key={h.id} onClick={() => setAbierto(h.id)}>
-              <span className="hide-ico"><i className="fa fa-binoculars" aria-hidden="true"></i><b>{i + 1}</b></span>
+            <button type="button" className="obs-cuadro" key={h.id} onClick={() => setAbierto(h.id)}>
+              <CasaHide num={i + 1} />
               <strong>{h.nombre}</strong>
               <small>{h.dms}</small>
               {rol === 'turista' && <em><i className="fa fa-eye"></i> {lista.length} {lista.length === 1 ? 'avistamiento' : 'avistamientos'}</em>}
@@ -76,7 +92,7 @@ export default function HideCard({ activa, datos }) {
           <div className="modal-caja hide-detalle">
             <button type="button" className="modal-x" onClick={() => setAbierto(null)}>×</button>
             <div className="hide-detalle-cab">
-              <span className="hide-ico"><i className="fa fa-binoculars" aria-hidden="true"></i></span>
+              <span className="obs-detalle"><CasaHide /></span>
               <div><h3 className="font-bold text-lg">{hideAbierto.nombre}</h3><small className="text-gray-500">{hideAbierto.dms}</small></div>
             </div>
             <div className="hide-acciones">

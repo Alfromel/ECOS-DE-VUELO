@@ -1,8 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import '@google/model-viewer'
 import { supabase } from '../lib/supabase'
 import { colorearParaba, HEX_DEFECTO, PARTES_COLOR, URL_MODELO } from '../lib/colorearParaba'
 import { exportarFicha } from '../lib/exportar'
+import { aplicarPose } from '../lib/poses3d'
+
+function VisorAdmin({ src, alto, claro }) {
+  const mv = useRef(null)
+  useEffect(() => {
+    const el = mv.current
+    if (!el) return
+    const onLoad = () => aplicarPose(el, 'vuelo')
+    el.addEventListener('load', onLoad)
+    return () => el.removeEventListener('load', onLoad)
+  }, [src])
+  return (
+    <div style={{ height: alto, position: 'relative' }} className={claro ? 'rounded-xl bg-gray-50' : ''}>
+      {src && <model-viewer ref={mv} src={src} camera-controls exposure="1.1" environment-image="neutral" shadow-intensity="0"
+        camera-orbit="40deg 78deg 150%" style={{ width: '100%', height: '100%' }} />}
+    </div>
+  )
+}
 
 const CAMPOS = [
   ['nombre_comun', 'Nombre común'], ['nombre_cientifico', 'Nombre científico'], ['familia', 'Familia'],
@@ -86,10 +104,7 @@ export default function AdminAve() {
       <div className="grid md:grid-cols-2 gap-4 mt-3">
         <div className="adm-caja">
           <b className="text-sm">Modelo 3D · colores</b>
-          <div style={{ height: 300 }}>
-            {src && <model-viewer src={src} camera-controls autoplay exposure="1.1" environment-image="neutral" shadow-intensity="0"
-              camera-orbit="40deg 78deg 150%" style={{ width: '100%', height: '100%' }} />}
-          </div>
+          <VisorAdmin src={src} alto={300} />
           <div className="grid grid-cols-2 gap-2 mt-2">
             {PARTES_COLOR.map(([k, t]) => (
               <label key={k} className="flex items-center gap-2 text-xs">
@@ -177,10 +192,7 @@ export default function AdminAve() {
       <div className="adm-caja mt-4">
         <b className="text-sm"><i className="fa fa-eye"></i> Previsualizar · así se ve la ficha técnica</b>
         <div className="grid md:grid-cols-2 gap-6 mt-3">
-          <div style={{ height: 380 }} className="rounded-xl bg-gray-50">
-            {src && <model-viewer src={src} camera-controls autoplay exposure="1.1" environment-image="neutral" shadow-intensity="0"
-              camera-orbit="40deg 78deg 150%" style={{ width: '100%', height: '100%' }} />}
-          </div>
+          <VisorAdmin src={src} alto={380} claro />
           <div>
             <span className="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">{ave.estado_conservacion || '—'}</span>
             <h2 className="text-3xl font-bold">{ave.nombre_comun || 'Sin nombre'}</h2>

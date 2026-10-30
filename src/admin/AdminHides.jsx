@@ -83,7 +83,7 @@ export default function AdminHides({ datos, tabla = 'hides', titulo = 'Hide', ar
   }, [])
 
   useEffect(() => {
-    dibujarRutas(capa.current, datos, { verDist: false })
+    dibujarRutas(capa.current, datos, { verDist: false, refInteractivas: true, referencias: [{ lista: datos[esNido ? 'hides' : 'nidos'] || [], icono: esNido ? pinHideBase : pinNido }] })
     hides.forEach(h => {
       if (f?.id === h.id) return
       L.marker(pt(h), { icon: pinHide }).addTo(capa.current).bindTooltip(h.nombre).on('click', () => editar(h))

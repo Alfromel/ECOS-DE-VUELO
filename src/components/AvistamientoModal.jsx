@@ -1,12 +1,17 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import MiniMapaPunto from './MiniMapaPunto'
 
 const vacio = { tipo: 'hide', hide_id: '', ruta_id: '', parada_id: '', especie: 'Paraba Frente Roja', descripcion: '', lat: '', lon: '' }
 
-export default function AvistamientoModal({ datos, onCerrar, onCreado, hideInicial = '' }) {
+export default function AvistamientoModal({ datos, onCerrar, onCreado, hideInicial = '', puntoInicial = null }) {
   const { perfil } = useAuth()
-  const [f, setF] = useState({ ...vacio, hide_id: hideInicial })
+  const [f, setF] = useState(() => puntoInicial
+    ? { ...vacio, tipo: 'ruta', ruta_id: puntoInicial.ruta_id || '', parada_id: puntoInicial.parada_id || '', lat: String(puntoInicial.lat), lon: String(puntoInicial.lon) }
+    : { ...vacio, hide_id: hideInicial })
+  const [mapa, setMapa] = useState(false)
+  const hideSel = f.tipo === 'hide' ? datos.hides.find(h => h.id === f.hide_id) : null
   const [fotos, setFotos] = useState([])
   const [error, setError] = useState(null)
   const [enviando, setEnviando] = useState(false)
@@ -91,9 +96,16 @@ export default function AvistamientoModal({ datos, onCerrar, onCreado, hideInici
           <input className="campo" placeholder="Latitud" value={f.lat} onChange={set('lat')} />
           <input className="campo" placeholder="Longitud" value={f.lon} onChange={set('lon')} />
         </div>
-        <button type="button" className="text-sm text-primary mb-2" onClick={miUbicacion} disabled={ubicando}>
-          <i className={'fa ' + (ubicando ? 'fa-spinner fa-spin' : 'fa-crosshairs')}></i> {ubicando ? 'Obteniendo ubicación…' : 'Usar mi ubicación'}
-        </button>
+        <div className="flex gap-4 mb-2">
+          <button type="button" className="text-sm text-primary" onClick={miUbicacion} disabled={ubicando}>
+            <i className={'fa ' + (ubicando ? 'fa-spinner fa-spin' : 'fa-crosshairs')}></i> {ubicando ? 'Obteniendo…' : 'Mi ubicación'}
+          </button>
+          <button type="button" className="text-sm text-primary" onClick={() => setMapa(true)}>
+            <i className="fa fa-map-marker"></i> Abrir mapa
+          </button>
+        </div>
+        {mapa && <MiniMapaPunto datos={datos} inicial={f.lat && f.lon ? [+f.lat, +f.lon] : hideSel ? [hideSel.latitud, hideSel.longitud] : null}
+          onCerrar={() => setMapa(false)} onElegir={(lat, lon) => { setF(v => ({ ...v, lat: String(lat), lon: String(lon) })); setMapa(false) }} />}
         <label className="block text-sm mb-2">Fotos (máx. 3)
           <input type="file" accept="image/*" multiple className="block mt-1" onChange={e => setFotos([...e.target.files].slice(0, 3))} />
         </label>

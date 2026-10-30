@@ -3,7 +3,7 @@ import L from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { CENTRO } from '../hooks/useUbicacion'
-import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, svgPin } from '../components/MapaRutas'
+import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, pinHide, pinNido, svgPin } from '../components/MapaRutas'
 import { coordenadasTramo, distanciaTramoKm, fmtKm, pos as pt, segmentosRuta } from '../lib/geo'
 import { eliminarFormasLocales, guardarFormaTramo, leerFormasLocales } from '../lib/formaTramos'
 import { agregarControlRotacion, opcionesRotacionAdmin } from '../lib/rotacionMapa'
@@ -114,7 +114,7 @@ export default function AdminRutas({ datos }) {
 
   useEffect(() => {
     const m = mapa.current
-    dibujarRutas(capa.current, datos, { verDist: true, sinParadas: new Set(selId ? [selId] : []) })
+    dibujarRutas(capa.current, datos, { verDist: true, sinParadas: new Set(selId ? [selId] : []), referencias: [{ lista: datos.hides || [], icono: pinHide }, { lista: datos.nidos || [], icono: pinNido }] })
     edit.current.clearLayers()
     ps.forEach((p, i) => {
       const mk = L.marker(pt(p), { icon: svgPin(sel.color, i), draggable: true }).addTo(edit.current)

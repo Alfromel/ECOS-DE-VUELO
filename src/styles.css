@@ -48,14 +48,19 @@
 
         /* Ficha técnica 3D */
         #ficha { background: linear-gradient(160deg, #fff 0%, #fef2f2 60%, #f1f5f9 100%) !important; }
-        .ficha-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 2rem; align-items: start; }
-        .ficha-visor { position: sticky; top: calc(var(--hh, 64px) + 1rem); }
+        .ficha-hero { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: start; }
+        .ficha-visor { position: static; }
         .ficha-visor .visor-caja { position: relative; height: calc(100vh - var(--hh, 64px) - 7rem); min-height: 22rem; border-radius: 1.5rem; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,.25); isolation: isolate; }
         .ficha-visor model-viewer { position: absolute; inset: 0; width: 100%; height: 100%; background: transparent; border-radius: 0; box-shadow: none; z-index: 2; }
         .escena { position: absolute; inset: 0; z-index: 1; overflow: hidden; background: #14532d; }
         .escena img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform-origin: 50% 60%; animation: zoomFondo 30s ease-in-out infinite alternate; }
         .escena::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 55%, rgba(0,0,0,0) 40%, rgba(0,20,0,.45) 100%); }
         @keyframes zoomFondo { from { transform: scale(1.02); } to { transform: scale(1.18) translate3d(-1.5%, 1%, 0); } }
+        .ficha-titulo { max-width: 52rem; margin-bottom: 1.25rem; }
+        .ficha-visor .visor-caja .ficha-controles, .adm-pagina .ficha-controles { position: absolute; z-index: 5; left: 50%; bottom: .7rem; transform: translateX(-50%); display: flex; flex-wrap: nowrap; gap: .4rem; margin: 0; padding: .3rem .4rem; border-radius: 9999px; background: rgba(15,23,42,.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+        .ficha-ico { width: 2.3rem; height: 2.3rem; min-height: 0 !important; display: grid; place-items: center; padding: 0 !important; border-radius: 50% !important; background: rgba(255,255,255,.92) !important; color: #B71C1C; border: 0 !important; font-size: 1rem; box-shadow: 0 2px 6px rgba(0,0,0,.3); transition: background .2s, color .2s, transform .15s; }
+        .ficha-ico:hover { transform: scale(1.08); }
+        .ficha-ico.on { background: linear-gradient(135deg, #E53935, #B71C1C) !important; color: #fff; }
         .ficha-controles { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; margin-top: .75rem; }
         .ficha-controles button { background: #fff; border: 1px solid #e2e8f0; border-radius: 9999px; padding: .4rem .9rem; font-size: .8rem; font-weight: 500; }
         .ficha-controles button:hover { background: #D32F2F; color: #fff; }
@@ -93,6 +98,15 @@
         .ciclo > div { border-left: 4px solid #D32F2F; background: #fff; padding: .9rem 1rem; border-radius: .5rem; box-shadow: 0 4px 12px rgba(0,0,0,.06); }
         .ciclo b { display: block; color: #D32F2F; }
         .ciclo span { font-size: .85rem; color: #475569; }
+        /* PC: 3D a la izquierda, título + información a la derecha, todo se mueve junto al scroll */
+        @media (min-width: 901px) {
+          #ficha { display: grid; grid-template-columns: 1.1fr 1fr; column-gap: 2rem; align-items: start; }
+          #ficha > * { grid-column: 1 / -1; }
+          #ficha > .ficha-hero { display: contents; }
+          #ficha .ficha-visor { grid-column: 1; grid-row: 1 / span 2; position: static; }
+          #ficha > .ficha-titulo { grid-column: 2; grid-row: 1; margin: 0 0 .5rem; max-width: none; }
+          #ficha .ficha-datos { grid-column: 2; grid-row: 2; }
+        }
         @media (max-width: 900px) { .ficha-hero { grid-template-columns: 1fr; } .ficha-visor { position: static; } }
 
         /* Clima a pantalla completa */
@@ -250,7 +264,7 @@ body[data-vista="mapa"] .leaflet-top.leaflet-left { margin-top: 4px; }
 #mapa-panel { max-height: 38dvh; overflow-y: auto; border-radius: 18px !important; }
 
 /* ---------- Ficha técnica (ave 3D) ---------- */
-.ficha-hero { grid-template-columns: 1fr !important; gap: 1rem; }
+.ficha-hero { grid-template-columns: 1fr; gap: 1rem; }
 .ficha-visor { position: static !important; }
 .ficha-visor .visor-caja {
     height: 17.5rem !important;

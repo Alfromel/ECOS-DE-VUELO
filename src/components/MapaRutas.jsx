@@ -3,10 +3,11 @@ import L from 'leaflet'
 import { capturarMapa } from '../lib/capturaMapa'
 import { CENTRO } from '../hooks/useUbicacion'
 import { useAuth } from '../hooks/useAuth'
-import { coordenadasTramo, distanciaKm, distanciaTramoKm, fmtKm, pos as pt, segmentosRuta } from '../lib/geo'
+import { coordenadasTramo, distanciaKm, distanciaTramoKm, fmtKm, paradaCercana, pos as pt, segmentosRuta } from '../lib/geo'
 import { pdfMapa } from '../lib/exportar'
 import ExportarMapa from './ExportarMapa'
 import AvistamientoModal from './AvistamientoModal'
+import NidoIco from './NidoIco'
 
 export const svgPin = (color, texto) => L.divIcon({
   className: 'svg-pin', iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -36],
@@ -35,9 +36,9 @@ export const pinHide = L.divIcon({
   iconAnchor: [19, 44],
   popupAnchor: [0, -40],
   html: `<svg width="38" height="46" viewBox="0 0 38 46" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-    <path d="M19 1C9 1 1 9 1 19c0 12 18 26 18 26s18-14 18-26C37 9 29 1 19 1z" fill="#D32F2F" stroke="#fff" stroke-width="2"/>
+    <path d="M19 1C9 1 1 9 1 19c0 12 18 26 18 26s18-14 18-26C37 9 29 1 19 1z" fill="#7A4F2A" stroke="#fff" stroke-width="2"/>
     <circle cx="19" cy="18" r="12" fill="#fff"/>
-    <path d="M9 16l10-7 10 7h-3v8h-3v-6h-8v6h-3v-8z" fill="#7F1D1D"/>
+    <path d="M9 16l10-7 10 7h-3v8h-3v-6h-8v6h-3v-8z" fill="#4E2A10"/>
     <path d="M17 19h4v5h-4z" fill="#F59E0B"/>
     <path d="M8 26h22M12 26v4m14-4v4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
   </svg>`,
@@ -128,8 +129,13 @@ export function agregarBuscador(m) {
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 
 // Dibuja rutas (líneas + distancias + paradas) en un grupo de capas. Reutilizado por el editor admin.
-export function dibujarRutas(grupo, { rutas, paradas, enlaces }, { verParadas = true, verDist = true, ocultas = new Set(), sinParadas = new Set() } = {}) {
+export function dibujarRutas(grupo, { rutas, paradas, enlaces }, { verParadas = true, verDist = true, ocultas = new Set(), sinParadas = new Set(), referencias = [], refInteractivas = false } = {}) {
   grupo.clearLayers()
+  // Marcadores de solo consulta (hides / nidos) para ubicarse al editar otro módulo
+  referencias.forEach(({ lista, icono }) => lista.forEach(h => {
+    const mk = L.marker(pt(h), { icon: icono, opacity: 0.8, interactive: refInteractivas, keyboard: false }).addTo(grupo)
+    if (refInteractivas) mk.bindTooltip(h.nombre)
+  }))
   rutas.filter(r => !ocultas.has(r.id)).forEach(r => {
     const { paradas: ps, segs } = segmentosRuta(r, paradas, enlaces)
     segs.forEach(([a, b, , forma]) => {
@@ -159,6 +165,7 @@ const TRAZOS = {
   capas: <><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 12.5l9 5 9-5" /><path d="M3 16.5l9 5 9-5" /></>,
   ir: <><path d="M4 12h15" /><path d="M13 6l6 6-6 6" /></>,
   x: <><path d="M6 6l12 12M18 6L6 18" /></>,
+  mas: <><path d="M12 5v14M5 12h14" /></>,
   descargar: <><path d="M12 4v11" /><path d="M7 11l5 5 5-5" /><path d="M5 20h14" /></>,
 }
 const Ico = ({ n }) => (
@@ -168,9 +175,14 @@ const Ico = ({ n }) => (
 export default function MapaRutas({ activa, pos, datos }) {
   const { rol, puede } = useAuth()
   const { rutas, paradas, enlaces, hides } = datos
+  const nidos = datos.nidos || []
   const registrado = rol !== 'invitado'
   const puedeAvistar = rol === 'turista' && puede('crear_avistamiento') !== false
   const [hideAvistar, setHideAvistar] = useState(null)
+  const [puntoAvistar, setPuntoAvistar] = useState(null)
+  const avistarRef = useRef(false)
+  useEffect(() => { avistarRef.current = puedeAvistar }, [puedeAvistar])
+  const [verNidos, setVerNidos] = useState(false)
   const contenedor = useRef(null)
   const mapa = useRef(null)
   const capa = useRef(null)
@@ -197,6 +209,12 @@ export default function MapaRutas({ activa, pos, datos }) {
     mapa.current?.flyTo(pt(h), Math.max(mapa.current.getZoom(), 17), { duration: 1.2 })
   }
 
+  const irANido = n => {
+    setVerNidos(true)
+    setPanel(null)
+    mapa.current?.flyTo(pt(n), Math.max(mapa.current.getZoom(), 17), { duration: 1.2 })
+  }
+
   useEffect(() => {
     const m = L.map(contenedor.current, { zoomControl: false, preferCanvas: true }).setView(CENTRO, 7)
     const bases = capasBase()
@@ -205,6 +223,13 @@ export default function MapaRutas({ activa, pos, datos }) {
     agregarSelectorCapa(m, bases)
     capa.current = L.layerGroup().addTo(m)
     mapa.current = m
+    // Tocar el mapa (cerca de una parada, hide o ruta) permite marcar un avistamiento ahí
+    m.on('click', e => {
+      if (!avistarRef.current) return
+      const lat = +e.latlng.lat.toFixed(6), lon = +e.latlng.lng.toFixed(6)
+      L.popup({ closeButton: false }).setLatLng(e.latlng)
+        .setContent(`<div class="hide-popup"><small>${lat}, ${lon}</small><button type="button" class="hide-popup-btn" data-punto="${lat},${lon}"><i class="fa fa-binoculars"></i> Avistamiento aquí</button></div>`).openOn(m)
+    })
     const onResize = () => m.invalidateSize()
     window.addEventListener('resize', onResize)
     return () => { window.removeEventListener('resize', onResize); marcadorYo.current = null; m.remove(); mapa.current = null }
@@ -231,16 +256,28 @@ export default function MapaRutas({ activa, pos, datos }) {
           ? `<button type="button" class="hide-popup-btn" data-avistar="${esc(h.id)}"><i class="fa fa-binoculars"></i> Hacer avistamiento</button>`
           : ''}</div>`))
     }
+    if (registrado && verNidos) {
+      nidos.forEach(n => L.marker(pt(n), { icon: pinNido }).addTo(capa.current)
+        .bindPopup(`<div class="hide-popup"><b>${esc(n.nombre)}</b>${n.descripcion ? '<small>' + esc(n.descripcion) + '</small>' : ''}</div>`))
+    }
     if (!encuadrado.current && (paradas.length || hides.length)) {
       const puntos = [...paradas.map(pt), ...(registrado ? hides.map(pt) : [])]
       if (puntos.length) { m.fitBounds(L.latLngBounds(puntos), { padding: [60, 60], animate: false }); encuadrado.current = true }
     }
-  }, [datos, ocultas, verHides, verParadas, verDist, registrado, hides, paradas, puedeAvistar])
+  }, [datos, ocultas, verHides, verNidos, verParadas, verDist, registrado, hides, nidos, paradas, puedeAvistar])
 
   useEffect(() => {
     const cont = mapa.current?.getContainer()
     if (!cont) return
     const alClick = e => {
+      const p = e.target.closest?.('[data-punto]')
+      if (p) {
+        const [lat, lon] = p.dataset.punto.split(',').map(Number)
+        const c = paradaCercana([lat, lon], datos.paradas)
+        mapa.current.closePopup()
+        setPuntoAvistar({ lat, lon, ruta_id: c?.parada.ruta_id, parada_id: c?.parada.id })
+        return
+      }
       const b = e.target.closest?.('[data-avistar]')
       if (!b) return
       mapa.current.closePopup()
@@ -248,7 +285,7 @@ export default function MapaRutas({ activa, pos, datos }) {
     }
     cont.addEventListener('click', alClick)
     return () => cont.removeEventListener('click', alClick)
-  }, [])
+  }, [datos.paradas])
 
   useEffect(() => {
     if (!activa) { mapa.current?.stop(); return }
@@ -297,6 +334,11 @@ export default function MapaRutas({ activa, pos, datos }) {
             <Ico n="hide" />
           </button>
         )}
+        {registrado && (
+          <button type="button" className={'mapa-fab' + (panel === 'nidos' ? ' on' : '')} onClick={() => alternarPanel('nidos')} aria-label="Nidos" title="Nidos">
+            <Ico n="mas" />
+          </button>
+        )}
         <button type="button" className={'mapa-fab' + (panel === 'capas' ? ' on' : '')} onClick={() => alternarPanel('capas')} aria-label="Capas y leyenda" title="Capas y leyenda">
           <Ico n="capas" />
         </button>
@@ -325,6 +367,21 @@ export default function MapaRutas({ activa, pos, datos }) {
               <span className="mapa-hide-ico"><Ico n="hide" /></span>
               <span className="flex-1 min-w-0"><b className="block truncate">{h.nombre}</b>{h.descripcion && <small className="block truncate text-gray-500">{h.descripcion}</small>}</span>
               <button type="button" className="mapa-ico-btn" onClick={() => irAHide(h)} aria-label={'Ir a ' + h.nombre} title="Ir al Hide"><Ico n="ir" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {panel === 'nidos' && registrado && (
+        <div className="mapa-panel abierto">
+          <div className="mapa-panel-cab"><b>Nidos</b><button type="button" className="mapa-x" onClick={() => setPanel(null)} aria-label="Cerrar"><Ico n="x" /></button></div>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={verNidos} onChange={e => setVerNidos(e.target.checked)} /> Mostrar nidos en el mapa</label>
+          {!nidos.length && <p className="text-xs text-gray-500">Aún no hay Nidos registrados.</p>}
+          {nidos.map(n => (
+            <div key={n.id} className="mapa-hide-fila">
+              <span className="mapa-hide-ico"><NidoIco size={20} /></span>
+              <span className="flex-1 min-w-0"><b className="block truncate">{n.nombre}</b>{n.descripcion && <small className="block truncate text-gray-500">{n.descripcion}</small>}</span>
+              <button type="button" className="mapa-ico-btn" onClick={() => irANido(n)} aria-label={'Ir a ' + n.nombre} title="Ir al nido"><Ico n="ir" /></button>
             </div>
           ))}
         </div>
@@ -367,6 +424,7 @@ export default function MapaRutas({ activa, pos, datos }) {
       </div>
 
       {hideAvistar && <AvistamientoModal datos={datos} hideInicial={hideAvistar} onCerrar={() => setHideAvistar(null)} onCreado={() => setHideAvistar(null)} />}
+      {puntoAvistar && <AvistamientoModal datos={datos} puntoInicial={puntoAvistar} onCerrar={() => setPuntoAvistar(null)} onCreado={() => setPuntoAvistar(null)} />}
       {modalExp && <ExportarMapa rutas={resumen} hayHides={hides.length > 0} generando={generando} onGenerar={generar} onCerrar={() => setModalExp(false)} />}
       {resultado && (
         <div className="modal-fondo" onMouseDown={e => e.target === e.currentTarget && setResultado(null)}>

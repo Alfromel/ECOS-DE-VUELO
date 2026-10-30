@@ -4,6 +4,8 @@ import { colorearParaba, URL_MODELO } from '../lib/colorearParaba'
 import { useAuth } from '../hooks/useAuth'
 import useAve from '../hooks/useAve'
 import { exportarFicha } from '../lib/exportar'
+import { aplicarPose } from '../lib/poses3d'
+import BotonesAve3D from './BotonesAve3D'
 
 const CARACTERISTICAS = [
   { pos: '0 6.5 20', t: 'Frente roja', d: 'Rojo intenso que da nombre a la especie.' },
@@ -48,7 +50,10 @@ export default function FichaAve({ activa }) {
   const [src, setSrc] = useState(null)
   const [visibles, setVisibles] = useState(() => Array(N).fill(false))
   const [layout, setLayout] = useState(() => Array(N).fill({ lado: 'l', top: '0%' }))
-  const [oculto, setOculto] = useState(false)
+  const [oculto, setOculto] = useState(true)
+  const [pose, setPose] = useState('vuelo')
+  const poseRef = useRef('vuelo')
+  useEffect(() => { poseRef.current = pose }, [pose])
 
   const raiz = useRef(null)
   const caja = useRef(null)
@@ -58,7 +63,7 @@ export default function FichaAve({ activa }) {
   const lineas = useRef([])
   const visRef = useRef(visibles)
   const layoutRef = useRef(layout)
-  const ocultoRef = useRef(false)
+  const ocultoRef = useRef(true)
   const timers = useRef([])
 
   useEffect(() => {
@@ -131,7 +136,7 @@ export default function FichaAve({ activa }) {
     const el = mv.current
     if (!el) return
     let t
-    const onLoad = () => { t = setTimeout(() => { if (!ocultoRef.current) mostrarCaracteristicas() }, 300) }
+    const onLoad = () => { aplicarPose(el, poseRef.current); t = setTimeout(() => { if (!ocultoRef.current) mostrarCaracteristicas() }, 300) }
     el.addEventListener('load', onLoad)
     return () => { el.removeEventListener('load', onLoad); clearTimeout(t) }
   }, [src, mostrarCaracteristicas])
@@ -150,8 +155,15 @@ export default function FichaAve({ activa }) {
     if (ocultoRef.current) ocultarCaracteristicas(); else mostrarCaracteristicas()
   }
 
+  const cambiarPose = p => { setPose(p); aplicarPose(mv.current, p) }
+
   return (
     <div ref={raiz} className={'bg-white rounded-xl shadow-md p-5' + (activa ? '' : ' vista-oculta')} id="ficha" data-vista="ave">
+      <div className="ficha-titulo">
+        <span className="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">{ave ? ave.estado_conservacion : 'En Peligro Crítico · UICN'}</span>
+        <h2 className="text-4xl font-bold text-dark">{ave ? ave.nombre_comun : 'Paraba Frente Roja'}</h2>
+        <p className="italic text-gray-500 mb-2">{ave ? [ave.nombre_cientifico, ave.familia].filter(Boolean).join(' · ') : 'Ara rubrogenys · Paraba frente roja'}</p>
+      </div>
       <div className="ficha-hero">
         <div className="ficha-visor">
           <div className="visor-caja" ref={caja}>
@@ -159,7 +171,7 @@ export default function FichaAve({ activa }) {
               <img src="/fondo-paraba.jpg" alt="Bosque vista aérea" decoding="async" />
             </div>
             {src && (
-              <model-viewer ref={mv} id="mv-ave" src={src} alt="Paraba Frente Roja en 3D" camera-controls autoplay
+              <model-viewer ref={mv} id="mv-ave" src={src} alt="Paraba Frente Roja en 3D" camera-controls
                 shadow-intensity="0" exposure="1.1" environment-image="neutral" interaction-prompt="none"
                 camera-orbit={ORBITA} min-camera-orbit="auto auto 40%" max-camera-orbit="auto auto 220%" loading="eager">
                 {CARACTERISTICAS.map((c, i) => (
@@ -186,25 +198,17 @@ export default function FichaAve({ activa }) {
                 </div>
               ))}
             </div>
-          </div>
-          <div className="ficha-controles">
-            <button type="button" id="mv-repetir" onClick={alternar}>
-              {oculto ? 'Mostrar características' : 'Ocultar características'}
-            </button>
+            <BotonesAve3D pose={pose} onPose={cambiarPose} caract={!oculto} onCaract={alternar} />
           </div>
         </div>
         <div className="ficha-datos">
-          <span className="inline-block bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">{ave ? ave.estado_conservacion : 'En Peligro Crítico · UICN'}</span>
-          <h2 className="text-4xl font-bold text-dark">{ave ? ave.nombre_comun : 'Paraba Frente Roja'}</h2>
-          <p className="italic text-gray-500 mb-4">{ave ? [ave.nombre_cientifico, ave.familia].filter(Boolean).join(' · ') : 'Ara rubrogenys · Paraba frente roja'}</p>
-          <p className="text-gray-600 mb-6">{ave ? ave.descripcion : 'Ave endémica de los valles secos interandinos de Bolivia. Su plumaje verde oliva contrasta con la frente y las mejillas rojas, y los hombros naranja-rojizos. Anida en acantilados de roca y es una de las pocas guacamayas con distribución restringida a un solo país.'}</p>
+          <p className="text-gray-600 mb-4">{ave ? ave.descripcion : 'Ave endémica de los valles secos interandinos de Bolivia. Su plumaje verde oliva contrasta con la frente y las mejillas rojas, y los hombros naranja-rojizos. Anida en acantilados de roca y es una de las pocas guacamayas con distribución restringida a un solo país.'}</p>
           {rol !== 'invitado' && puede('descargar_ficha') && ave && (
             <div className="flex gap-2 mb-5">
               <button className="btn-rojo" onClick={() => exportarFicha(ave, 'pdf')}><i className="fa fa-file-pdf-o"></i> Descargar PDF</button>
               <button className="btn-sec" onClick={() => exportarFicha(ave, 'excel')}><i className="fa fa-file-excel-o"></i> Descargar Excel</button>
             </div>
-          )}
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          )}          <div className="grid grid-cols-2 gap-3 mb-6">
             {lista(ave, 'estadisticas', EST_DEF).map((e, i) => (
               <div className="dato-3d" key={i}><i className={'fa ' + (e.icono || 'fa-info-circle')}></i><b>{e.valor}</b><span>{e.etiqueta}</span></div>
             ))}
