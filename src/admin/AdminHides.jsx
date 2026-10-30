@@ -3,16 +3,20 @@ import L from 'leaflet'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { CENTRO } from '../hooks/useUbicacion'
-import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, pinHide } from '../components/MapaRutas'
+import { agregarBuscador, agregarSelectorCapa, capasBase, dibujarRutas, pinHide as pinHideBase, pinNido } from '../components/MapaRutas'
 import { fmtKm, pos as pt, paradaCercana } from '../lib/geo'
 import { leerCoordenadas } from '../lib/coordenadas'
+import NidoIco from '../components/NidoIco'
 import { agregarControlRotacion, opcionesRotacionAdmin } from '../lib/rotacionMapa'
 
 const vacio = { id: null, nombre: '', descripcion: '', latitud: '', longitud: '', ruta_id: '', parada_id: '' }
 
-export default function AdminHides({ datos }) {
+export default function AdminHides({ datos, tabla = 'hides', titulo = 'Hide', articulo = 'un hide' }) {
   const { perfil } = useAuth()
-  const { rutas, paradas, hides, recargar } = datos
+  const { rutas, paradas, recargar } = datos
+  const hides = datos[tabla]
+  const esNido = tabla === 'nidos'
+  const pinHide = esNido ? pinNido : pinHideBase
   const [f, setF] = useState(null) // formulario (nuevo o edición)
   const [sugerido, setSugerido] = useState(null)
   const [error, setError] = useState(null)
@@ -140,8 +144,8 @@ export default function AdminHides({ datos }) {
       ruta_id: f.ruta_id || null, parada_id: f.parada_id || null, actualizado_en: new Date().toISOString(),
     }
     const r = f.id
-      ? await supabase.from('hides').update(fila).eq('id', f.id)
-      : await supabase.from('hides').insert({ ...fila, creado_por: perfil.id })
+      ? await supabase.from(tabla).update(fila).eq('id', f.id)
+      : await supabase.from(tabla).insert({ ...fila, creado_por: perfil.id })
     if (r.error) { setGuardando(false); return setError(r.error.message) }
     setError(null); setF(null); setSugerido(null); await recargar()
     setGuardando(false)
@@ -150,7 +154,7 @@ export default function AdminHides({ datos }) {
   const eliminar = async () => {
     if (guardando || !confirm(`¿Eliminar "${f.nombre}"?`)) return
     setGuardando(true)
-    const r = await supabase.from('hides').delete().eq('id', f.id)
+    const r = await supabase.from(tabla).delete().eq('id', f.id)
     if (r.error) { setGuardando(false); return setError(r.error.message) }
     setF(null); await recargar()
     setGuardando(false)
@@ -164,13 +168,13 @@ export default function AdminHides({ datos }) {
     <div className="adm-split">
       <div className="adm-lado">
         <div className="flex items-center justify-between">
-          <h3 className="adm-h">Hide</h3>
+          <h3 className="adm-h">{titulo}</h3>
           <button className="btn-rojo" onClick={() => { setF({ ...vacio }); setSugerido(null) }}><i className="fa fa-plus"></i> Nuevo</button>
         </div>
         <div className="space-y-1 mb-3">
           {hides.map(h => (
             <div key={h.id} className={'adm-fila ' + (f?.id === h.id ? 'activa' : '')}>
-              <span className="hide-mini-mirador" aria-hidden="true"><i className="fa fa-binoculars"></i></span>
+              <span className={esNido ? 'nido-mini' : 'hide-mini-mirador'} aria-hidden="true">{esNido ? <NidoIco size={20} /> : <i className="fa fa-binoculars"></i>}</span>
               <span className="flex-1 text-left min-w-0">{h.nombre}<small className="block text-gray-500">{[nombreRuta(h.ruta_id), nombreParada(h.parada_id)].filter(Boolean).join(' · ') || 'Sin ruta'}</small></span>
               <button type="button" className="adm-ico-btn" onClick={() => ver(h)} aria-label={'Ir a ' + h.nombre} title="Ver en el mapa"><i className="fa fa-eye" aria-hidden="true"></i></button>
               <button type="button" className="adm-ico-btn" onClick={() => editar(h)} aria-label={'Editar ' + h.nombre} title="Editar"><i className="fa fa-pencil" aria-hidden="true"></i></button>
@@ -179,7 +183,7 @@ export default function AdminHides({ datos }) {
         </div>
         {f && (
           <form className="adm-caja" onSubmit={guardar}>
-            <b className="text-sm">{f.id ? 'Editar Hide' : 'Nuevo Hide'}</b>
+            <b className="text-sm">{f.id ? 'Editar ' : 'Nuevo '}{titulo}</b>
             <p className="text-xs text-gray-500 mb-2">Haz clic en el mapa, arrastra el pin o usa el campo de coordenadas.</p>
             <input className="campo" placeholder="Nombre" value={f.nombre} onChange={set('nombre')} required />
             <textarea className="campo" rows={2} placeholder="Descripción" value={f.descripcion} onChange={set('descripcion')} />
@@ -220,9 +224,9 @@ export default function AdminHides({ datos }) {
         {pendiente && (
           <div className="adm-parada-dialogo-fondo" onClick={() => setPendiente(null)}>
             <section className="adm-parada-dialogo" role="dialog" aria-modal="true" aria-labelledby="adm-hide-dialogo-titulo" onClick={e => e.stopPropagation()}>
-              <div className="adm-parada-dialogo-icono"><i className="fa fa-binoculars" aria-hidden="true"></i></div>
+              <div className="adm-parada-dialogo-icono">              {esNido ? <NidoIco size={30} /> : <i className="fa fa-binoculars" aria-hidden="true"></i>}</div>
               <div className="adm-parada-dialogo-contenido">
-                <h3 id="adm-hide-dialogo-titulo">¿Deseas agregar un hide aquí?</h3>
+                <h3 id="adm-hide-dialogo-titulo">¿Deseas agregar {articulo} aquí?</h3>
                 <p>Se abrirá el formulario con esta ubicación:</p>
                 <small>{pendiente.lat}, {pendiente.lon}</small>
               </div>

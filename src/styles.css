@@ -29,16 +29,16 @@
         }
         body[data-vista="mapa"] #mapa { height: 100% !important; border-radius: 0; margin: 0; }
         body:not([data-vista="mapa"]) main .grid { grid-template-columns: minmax(0, 1fr); }
-        body[data-vista="ave"] main, body[data-vista="clima"] main, body[data-vista="hide"] main,
+        body[data-vista="ave"] main, body[data-vista="clima"] main,         body[data-vista="hide"] main, body[data-vista="nidos"] main,
         body[data-vista="reportes"] main, body[data-vista="recomendaciones"] main { max-width: none; padding: 0; margin: 0; }
-        body[data-vista="ave"] main .grid, body[data-vista="clima"] main .grid, body[data-vista="hide"] main .grid,
+        body[data-vista="ave"] main .grid, body[data-vista="clima"] main .grid,         body[data-vista="hide"] main .grid, body[data-vista="nidos"] main .grid,
         body[data-vista="reportes"] main .grid, body[data-vista="recomendaciones"] main .grid { margin: 0; gap: 0; }
-        body[data-vista="ave"] main .rounded-xl, body[data-vista="clima"] main .rounded-xl, body[data-vista="hide"] main .rounded-xl,
+        body[data-vista="ave"] main .rounded-xl, body[data-vista="clima"] main .rounded-xl,         body[data-vista="hide"] main .rounded-xl, body[data-vista="nidos"] main .rounded-xl,
         body[data-vista="reportes"] main .rounded-xl, body[data-vista="recomendaciones"] main .rounded-xl {
             border-radius: 0; box-shadow: none; min-height: calc(100vh - var(--hh, 64px)); padding: clamp(1rem, 4vw, 3.5rem); contain: none; will-change: auto;
         }
-        body[data-vista="ave"] footer, body[data-vista="clima"] footer, body[data-vista="hide"] footer { display: none; }
-        #hide { background: linear-gradient(160deg, #f0fdf4 0%, #fff 60%); }
+        body[data-vista="ave"] footer, body[data-vista="clima"] footer,         body[data-vista="hide"] footer, body[data-vista="nidos"] footer { display: none; }
+                #hide, #nidos { background: linear-gradient(160deg, #f0fdf4 0%, #fff 60%); }
         .hide-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; }
         .hide-item { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; align-items: center; background: #fff; border-radius: 1.1rem; padding: 1rem; box-shadow: 0 6px 18px rgba(0,0,0,.08); }
         .hide-ico { grid-row: span 2; position: relative; width: 3rem; height: 3rem; border-radius: 14px; background: linear-gradient(145deg, #ecfdf5, #d1fae5); color: #166534; display: grid; place-items: center; font-size: 1.15rem; box-shadow: inset 0 1px rgba(255,255,255,.85), 0 4px 10px rgba(22,101,52,.12); }

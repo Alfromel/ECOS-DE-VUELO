@@ -1,19 +1,15 @@
-const VIDEOS = [
-  {
-    titulo: 'Videos de la Paraba Frente Roja',
-    src: 'https://www.youtube.com/embed/U2veayfNHLw',
-  },
-  {
-    titulo: 'Estado Plurinacional de Bolivia',
-    texto: 'Hogar único de la Paraba Frente Roja, especie endémica de los valles secos interandinos.',
-    src: 'https://www.youtube.com/embed?listType=search&list=Estado+Plurinacional+de+Bolivia+naturaleza+biodiversidad',
-  },
-]
-
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { urlEmbed } from '../lib/youtube'
 import ClimaMini from './ClimaMini'
 
 export default function Inicio({ activa, clima, lugar }) {
   const oculta = activa ? '' : ' vista-oculta'
+  const [videos, setVideos] = useState([])
+  useEffect(() => {
+    supabase.from('videos').select('*').eq('activo', true).order('orden').order('creado_en')
+      .then(({ data }) => setVideos(data || []))
+  }, [])
   return (
     <>
       <section data-vista="inicio" className={'relative h-[80vh] flex items-center overflow-hidden' + oculta}>
@@ -58,22 +54,23 @@ export default function Inicio({ activa, clima, lugar }) {
         </div>
       </section>
 
-      <section data-vista="inicio" className={'container mx-auto px-4 py-12' + oculta}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {VIDEOS.map(v => (
-            <div className="bg-white rounded-xl shadow-md p-5" key={v.titulo}>
-              <h3 className="font-bold text-lg mb-3">{v.titulo}</h3>
-              {v.texto && <p className="text-gray-500 text-sm mb-4">{v.texto}</p>}
-              <div className="aspect-video rounded-lg overflow-hidden bg-black">
+      {videos.length > 0 && <section data-vista="inicio" className={'container mx-auto px-4 py-12' + oculta}>
+        <h2 className="text-2xl font-bold mb-5"><i className="fa fa-youtube-play text-primary"></i> Videos</h2>
+        <div className="videos-inicio">
+          {videos.map((v, i) => (
+            <div className={'video-tarjeta' + (i === 0 && videos.length > 1 && videos.length % 2 === 1 ? ' video-dest' : '')} key={v.id}>
+              <div className="aspect-video bg-black">
                 {activa && (
-                  <iframe className="w-full h-full" src={v.src} title={v.titulo} loading="lazy"
+                  <iframe className="w-full h-full" src={urlEmbed(v.url)} title={v.titulo} loading="lazy"
                     allow="accelerometer; encrypted-media; picture-in-picture; fullscreen" allowFullScreen></iframe>
                 )}
               </div>
+              <h3>{v.titulo}</h3>
+              {v.texto && <p className="text-gray-500 text-sm px-4 pb-4 -mt-2">{v.texto}</p>}
             </div>
           ))}
         </div>
-      </section>
+      </section>}
     </>
   )
 }

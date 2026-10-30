@@ -4,6 +4,7 @@ import { exportarPdf, exportarExcel } from '../lib/exportar'
 import { useAuth } from '../hooks/useAuth'
 
 const fecha = f => (f ? new Date(f).toLocaleDateString() : '—')
+const fechaHora = f => (f ? new Date(f).toLocaleString() : '—')
 const VACIO = { nombre: '', email: '', telefono: '', password: '', rol: 'turista' }
 const ROLES = { turista: 'Turista', admin_guia: 'Administrador' }
 
@@ -16,6 +17,10 @@ export default function AdminUsuarios() {
   const [error, setError] = useState(null)
   const [guardando, setGuardando] = useState(false)
   const [edit, setEdit] = useState(null)
+  const [ver, setVer] = useState(null)
+  const [avistamientos, setAvistamientos] = useState([])
+  const [filtroAv, setFiltroAv] = useState('todos')
+  const [cargandoAv, setCargandoAv] = useState(false)
   const [conteo, setConteo] = useState({})
   const [cargando, setCargando] = useState(true)
   const [cambiando, setCambiando] = useState(null)
@@ -44,6 +49,32 @@ export default function AdminUsuarios() {
     columnas: ['Nombre', 'Correo', 'Teléfono', 'Rol',     'Estado', 'Avistamientos', 'Registro'],
         filas: filtrados.map(u => [u.nombre_completo || '—', u.email || '—', u.telefono || '—', ROLES[u.rol] || u.rol, u.activo === false ? 'Inactivo' : 'Activo', conteo[u.id] || 0, fecha(u.creado_en)]),
   })
+
+  const abrirVer = async u => {
+    setVer(u)
+    setFiltroAv('todos')
+    setAvistamientos([])
+    setCargandoAv(true)
+    const [av, hi, ru, pa] = await Promise.all([
+      supabase.from('avistamientos')
+        .select('id, especie, descripcion, fotos, hide_id, ruta_id, parada_id, latitud, longitud, estado, comentario_admin, creado_en')
+        .eq('usuario_id', u.id)
+        .order('creado_en', { ascending: false }),
+      supabase.from('hides').select('id, nombre, latitud, longitud'),
+      supabase.from('rutas').select('id, nombre'),
+      supabase.from('paradas').select('id, nombre, latitud, longitud'),
+    ])
+    const buscar = (arr, id) => (arr || []).find(x => x.id === id)
+    setAvistamientos((av.data || []).map(a => ({
+      ...a,
+      hide: buscar(hi.data, a.hide_id),
+      ruta: buscar(ru.data, a.ruta_id),
+      parada: buscar(pa.data, a.parada_id),
+    })))
+    setCargandoAv(false)
+  }
+
+  const avistamientosVisibles = filtroAv === 'todos' ? avistamientos : avistamientos.filter(a => a.estado === filtroAv)
 
   const crear = async e => {
     e.preventDefault()
@@ -115,7 +146,7 @@ export default function AdminUsuarios() {
               <tr key={u.id}>
                 <td>{u.nombre_completo || '—'}</td><td>{u.email}</td><td>{u.telefono || '—'}</td>
                 <td>{ROLES[u.rol] || u.rol}</td>
-                <td>{u.activo === false ? 'Inactivo' : 'Activo'}</td><td>{conteo[u.id] || 0}</td><td>{fecha(u.creado_en)}</td>
+                <td>{u.activo === false ? 'Inactivo' : 'Activo'}</td><td><span>{conteo[u.id] || 0}</span>{' '}<button className="btn-sec" style={{ padding: '.3rem .6rem' }} title="Ver avistamientos" aria-label={`Ver avistamientos de ${u.nombre_completo || u.email}`} onClick={() => abrirVer(u)}><i className="fa fa-eye"></i></button></td><td>{fecha(u.creado_en)}</td>
                                 <td style={{ whiteSpace: 'nowrap' }}>
                                   <button className="btn-sec" style={{ padding: '.3rem .6rem' }} title="Editar" onClick={() => { setError(null); setEdit({ ...u, telefono: u.telefono || '', nombre_completo: u.nombre_completo || '', activo: u.activo !== false }) }}><i className="fa fa-pencil"></i></button>{' '}
                                   {u.id !== perfil?.id && (u.activo === false
@@ -128,6 +159,83 @@ export default function AdminUsuarios() {
           </tbody>
         </table>
       </div>
+
+      {ver && (
+        <div className="modal-fondo" onClick={() => setVer(null)}>
+          <div className="modal-caja adm-usuario-modal" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
+            <header className="adm-usuario-cabecera">
+              <div>
+                <p className="adm-usuario-eyebrow">REGISTRO DE AVISTAMIENTOS</p>
+                <h3>{ver.nombre_completo || ver.email || 'Usuario'}</h3>
+              </div>
+              <button type="button" className="btn-sec" title="Cerrar" aria-label="Cerrar" onClick={() => setVer(null)}><i className="fa fa-times"></i></button>
+            </header>
+
+            {!cargandoAv && <div className="adm-usuario-resumen" aria-label="Filtrar avistamientos">
+              {[
+                ['Todos', avistamientos.length, 'fa-binoculars', 'todos'],
+                ['Pendientes', avistamientos.filter(a => a.estado === 'pendiente').length, 'fa-clock-o', 'pendiente'],
+                ['Aprobados', avistamientos.filter(a => a.estado === 'aprobado').length, 'fa-check-circle', 'aprobado'],
+                ['Rechazados', avistamientos.filter(a => a.estado === 'rechazado').length, 'fa-times-circle', 'rechazado'],
+              ].map(([label, total, icon, estado]) => (
+                <button type="button" className={`adm-usuario-indicador ${estado}${filtroAv === estado ? ' seleccionado' : ''}`} key={estado} aria-pressed={filtroAv === estado} onClick={() => setFiltroAv(estado)}>
+                  <i className={`fa ${icon}`} aria-hidden="true"></i>
+                  <span>{label}</span>
+                  <strong>{total}</strong>
+                </button>
+              ))}
+            </div>}
+
+            <h4 className="adm-usuario-subtitulo">Avistamientos registrados</h4>
+            {cargandoAv ? (
+              <p className="adm-cargando"><i className="fa fa-spinner fa-spin"></i> Cargando avistamientos…</p>
+            ) : avistamientosVisibles.length === 0 ? (
+              <p className="adm-usuario-vacio">{avistamientos.length ? 'No hay avistamientos con este estado.' : 'Este usuario aún no ha registrado avistamientos.'}</p>
+            ) : (
+              <div className="adm-usuario-lista">
+                {avistamientosVisibles.map(a => {
+                  const punto = a.latitud != null && a.longitud != null
+                    ? { latitud: a.latitud, longitud: a.longitud }
+                    : a.hide?.latitud != null && a.hide?.longitud != null ? a.hide
+                      : a.parada?.latitud != null && a.parada?.longitud != null ? a.parada : null
+                  const lugar = [a.hide?.nombre, a.ruta?.nombre, a.parada?.nombre].filter(Boolean).join(' · ')
+                  const estado = a.estado || 'pendiente'
+                  const numero = avistamientos.findIndex(item => item.id === a.id) + 1
+                  return (
+                    <article key={a.id} className={`adm-usuario-avistamiento ${estado}`}>
+                      <div className="adm-usuario-avistamiento-top">
+                        <div>
+                          <span className="adm-usuario-numero">AVISTAMIENTO #{numero}</span>
+                          <h5>{a.especie || 'Especie sin especificar'}</h5>
+                        </div>
+                        <span className={`adm-usuario-estado ${estado}`}>{estado}</span>
+                      </div>
+                      <p className="adm-usuario-fecha"><i className="fa fa-clock-o" aria-hidden="true"></i> {fechaHora(a.creado_en)}</p>
+                      {a.descripcion && <p className="adm-usuario-descripcion">{a.descripcion}</p>}
+                      <div className="adm-usuario-ubicacion">
+                        <div><i className={`fa ${a.hide_id ? 'fa-binoculars' : 'fa-map-signs'}`} aria-hidden="true"></i><span><b>Ubicación</b>{lugar || (a.hide_id ? 'Hide no especificado' : 'En ruta')}</span></div>
+                        <div><i className="fa fa-map-marker" aria-hidden="true"></i><span><b>Coordenadas</b>{punto ? `${Number(punto.latitud).toFixed(6)}, ${Number(punto.longitud).toFixed(6)}` : 'No disponibles'}</span></div>
+                      </div>
+                      {a.comentario_admin && <p className="adm-usuario-comentario"><b>Comentario administrativo:</b> {a.comentario_admin}</p>}
+                      <div className="adm-usuario-pie">
+                        {a.fotos?.length > 0 ? (
+                          <div className="adm-usuario-fotos" aria-label={`${a.fotos.length} fotos`}>
+                            {a.fotos.map((url, i) => <a key={`${a.id}-${i}`} href={url} target="_blank" rel="noreferrer" title={`Abrir foto ${i + 1}`}><img src={url} alt={`Foto ${i + 1} de ${a.especie || 'avistamiento'}`} /></a>)}
+                          </div>
+                        ) : <span className="adm-usuario-sin-fotos">Sin fotografías</span>}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+
+            <div className="adm-usuario-acciones">
+              <button type="button" className="btn-sec" onClick={() => setVer(null)}>Cerrar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {edit && (
         <div className="modal-fondo" onClick={() => setEdit(null)}>

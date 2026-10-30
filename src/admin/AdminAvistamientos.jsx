@@ -8,6 +8,7 @@ export default function AdminAvistamientos({ datos }) {
   const [usuarios, setUsuarios] = useState({})
   const [filtro, setFiltro] = useState('todos')
   const [usuarioSel, setUsuarioSel] = useState('')
+  const [busqueda, setBusqueda] = useState('')
   const [hideSel, setHideSel] = useState('')
   const [coment, setComent] = useState({})
   const [cargando, setCargando] = useState(true)
@@ -44,7 +45,12 @@ export default function AdminAvistamientos({ datos }) {
   }
 
   const nom = (arr, id) => arr.find(x => x.id === id)?.nombre
-  const base = lista.filter(a => (!usuarioSel || a.usuario_id === usuarioSel) && (!hideSel || a.hide_id === hideSel))
+  const q = busqueda.trim().toLowerCase()
+  const coincide = a => !q || [
+    usuarios[a.usuario_id], nom(datos.hides || [], a.hide_id), nom(datos.rutas || [], a.ruta_id), nom(datos.paradas || [], a.parada_id),
+    new Date(a.creado_en).toLocaleString(), ...Object.values(a).filter(v => typeof v === 'string' || typeof v === 'number'),
+  ].some(v => String(v || '').toLowerCase().includes(q))
+  const base = lista.filter(a => (!usuarioSel || a.usuario_id === usuarioSel) && (!hideSel || a.hide_id === hideSel) && coincide(a))
   const vistos = base.filter(a => filtro === 'todos' || a.estado === filtro)
   const porUsuario = lista.filter(a => !usuarioSel || a.usuario_id === usuarioSel)
   const usuariosConAv = Object.keys(usuarios).filter(id => lista.some(a => a.usuario_id === id))
@@ -69,6 +75,10 @@ export default function AdminAvistamientos({ datos }) {
           <option value="">Todos los usuarios</option>
           {[...usuariosConAv].sort((x, y) => (usuarios[x] || '').localeCompare(usuarios[y] || '')).map(id => <option key={id} value={id}>{usuarios[id]}</option>)}
         </select>
+        <div style={{ position: 'relative' }}>
+          <i className="fa fa-search" style={{ position: 'absolute', left: '.7rem', top: '50%', transform: 'translateY(-50%)', opacity: .5, pointerEvents: 'none' }}></i>
+          <input className="campo" style={{ width: '14rem', marginBottom: 0, paddingLeft: '2rem' }} type="search" placeholder="Buscar nombre, especie, número…" value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+        </div>
       </div>
       <div className="space-y-3">
         {cargando && <p className="adm-cargando"><i className="fa fa-spinner fa-spin"></i> Cargando…</p>}

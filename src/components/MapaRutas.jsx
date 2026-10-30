@@ -15,6 +15,20 @@ export const svgPin = (color, texto) => L.divIcon({
     <circle cx="15" cy="15" r="9" fill="#fff"/>${texto !== undefined && texto !== null ? `<text x="15" y="19" font-size="11" font-weight="700" text-anchor="middle" fill="${color}">${texto}</text>` : `<circle cx="15" cy="15" r="3.5" fill="${color}"/>`}</svg>`,
 })
 export const pinYo = svgPin('#7B1FA2')
+export const pinNido = L.divIcon({
+  className: 'hide-mirador-pin',
+  iconSize: [38, 46],
+  iconAnchor: [19, 44],
+  popupAnchor: [0, -40],
+  html: `<svg width="38" height="46" viewBox="0 0 38 46" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M19 1C9 1 1 9 1 19c0 12 18 26 18 26s18-14 18-26C37 9 29 1 19 1z" fill="#166534" stroke="#fff" stroke-width="2"/>
+    <circle cx="19" cy="18" r="12" fill="#fff"/>
+    <ellipse cx="15.500" cy="15" rx="3" ry="3.800" fill="#FDE68A" stroke="#166534" stroke-width="1"/>
+    <ellipse cx="22.500" cy="15" rx="3" ry="3.800" fill="#FDE68A" stroke="#166534" stroke-width="1"/>
+    <path d="M7 18c0 7 5 12 12 12s12-5 12-12z" fill="#16A34A"/>
+    <path d="M9 21l20 3M10 25l18-2M13 28l12-3" stroke="#14532D" stroke-width="1.200" stroke-linecap="round"/>
+  </svg>`,
+})
 export const pinHide = L.divIcon({
   className: 'hide-mirador-pin',
   iconSize: [38, 46],

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 export const RUTAS = {
   '': 'inicio', inicio: 'inicio', mapa: 'mapa', ficha: 'ave', ave: 'ave',
-  clima: 'clima', reportes: 'reportes', alertas: 'reportes', hide: 'hide', admin: 'admin', recomendaciones: 'recomendaciones', nosotros: 'nosotros',
+  clima: 'clima', reportes: 'reportes', alertas: 'reportes', hide: 'hide', nidos: 'nidos', admin: 'admin', recomendaciones: 'recomendaciones', nosotros: 'nosotros',
 }
 
 // Hash con parámetro opcional: #mapa/3 abre el mapa enfocando el Hide 3
